@@ -39,12 +39,9 @@ RCT_EXPORT_METHOD(copyToICloud:(NSString *)sourceUri :(NSString *)targetRelative
 
             NSError *error;
             if ([fileManager setUbiquitous:YES itemAtURL:sourceURL destinationURL:targetFile error:&error]) {
-                NSDictionary *attrs = [fileManager attributesOfItemAtPath:targetFile.absoluteString error:nil];
-                NSNumber* fileSize = [NSNumber numberWithUnsignedLongLong:[attrs fileSize]];
                 
                 resolve(@{
                           @"path": targetFile.absoluteString,
-                          @"fileSize": fileSize
                           });
             } else {
                 NSLog(@"Error occurred: %@", error);
