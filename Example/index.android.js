@@ -1,0 +1,2 @@
+import Example from './app';
+
