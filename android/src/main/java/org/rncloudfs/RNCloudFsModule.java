@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
+import android.webkit.MimeTypeMap;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -56,7 +57,11 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @ReactMethod
-    public void copyToICloud(final String sourceUri, final String destinationPath, final Promise promise) {
+    public void copyToCloud(final String sourceUri, final String destinationPath, @Nullable String mimeType, final Promise promise) {
+        if(mimeType == null) {
+            mimeType = guessMimeType(sourceUri);
+        }
+
         String folder = getApplicationName(reactContext) + "/" + destinationPath;
 
         List<String> names = new ArrayList<>();
@@ -66,12 +71,12 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
             }
         }
 
-        createFileInFolders(Drive.DriveApi.getRootFolder(googleApiClient), names, sourceUri, promise);
+        createFileInFolders(Drive.DriveApi.getRootFolder(googleApiClient), names, new SourceUri(sourceUri), mimeType, promise);
     }
 
-    private void createFileInFolders(DriveFolder parentFolder, final List<String> names, final String sourceUri, final Promise promise) {
-        if(names.size() > 1) {
-            final String name = names.remove(0);
+    private void createFileInFolders(DriveFolder parentFolder, final List<String> pathParts, final SourceUri sourceUri, @Nullable final String mimeType, final Promise promise) {
+        if(pathParts.size() > 1) {
+            final String name = pathParts.remove(0);
 
             MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
                     .setTitle(name)
@@ -81,48 +86,41 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                     .setResultCallback(new ResultCallback<DriveFolder.DriveFolderResult>() {
                         @Override
                         public void onResult(@NonNull DriveFolder.DriveFolderResult result) {
-                            Log.i(TAG, "Created folder '" + name + "'");
+                            Log.d(TAG, "Created folder '" + name + "'");
 
-                            createFileInFolders(result.getDriveFolder(), names, sourceUri, promise);
+                            createFileInFolders(result.getDriveFolder(), pathParts, sourceUri, mimeType, promise);
                         }
                     });
         } else {
-            createFileInFolder(parentFolder, sourceUri, promise, names.get(0));
+            createFileInFolder(parentFolder, sourceUri, pathParts.get(0), mimeType, promise);
         }
     }
 
-    private void createFileInFolder(final DriveFolder driveFolder, final String sourceUri, final Promise promise, final String filename) {
+    private void createFileInFolder(final DriveFolder driveFolder, final SourceUri sourceUri, final String filename, @Nullable final String mimeType, final Promise promise) {
         Drive.DriveApi.newDriveContents(googleApiClient).setResultCallback(new ResultCallback<DriveApi.DriveContentsResult>() {
             @Override
             public void onResult(@NonNull DriveApi.DriveContentsResult result) {
                 if (!result.getStatus().isSuccess()) {
-                    Log.i(TAG, "Failed to create new contents.");
+                    Log.e(TAG, "Failed to create new content");
+                    promise.reject("Failed to create new content", "Failed to create new content");
                     return;
                 }
 
-                Log.i(TAG, "New contents created.");
-
                 try {
-                    InputStream inputStream = read(sourceUri);
-                    if (inputStream == null) {
-                        promise.reject("Failed to read input", sourceUri);
-                        return;
+                    DriveContents driveContents = result.getDriveContents();
+
+                    OutputStream outputStream = driveContents.getOutputStream();
+                    sourceUri.copyToOutputStream(outputStream);
+                    outputStream.close();
+
+                    MetadataChangeSet.Builder builder = new MetadataChangeSet.Builder()
+                            .setTitle(filename);
+
+                    if(mimeType != null) {
+                        builder.setMimeType(mimeType);
                     }
 
-                    DriveContents driveContents = result.getDriveContents();
-                    OutputStream outputStream = driveContents.getOutputStream();
-
-                    copyInputStreamToOutputStream(inputStream, outputStream);
-                    outputStream.close();
-                    inputStream.close();
-
-                    MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
-                            .setTitle(filename)
-                            .setMimeType("text/plain")
-                            .setStarred(true)
-                            .build();
-
-                    driveFolder.createFile(googleApiClient, changeSet, driveContents)
+                    driveFolder.createFile(googleApiClient, builder.build(), driveContents)
                             .setResultCallback(new ResultCallback<DriveFolder.DriveFileResult>() {
                                 @Override
                                 public void onResult(@NonNull DriveFolder.DriveFileResult driveFileResult) {
@@ -135,7 +133,6 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 } catch (IOException e) {
                     Log.e(TAG, "Failed to read " + sourceUri, e);
                     promise.reject("Failed to read input", e);
-                    return;
                 }
             }
         });
@@ -147,27 +144,52 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
         return stringId == 0 ? applicationInfo.nonLocalizedLabel.toString() : context.getString(stringId);
     }
 
-    private InputStream read(String sourceUri) throws IOException {
-        final InputStream inputStream;
-        if (sourceUri.startsWith("/") || sourceUri.startsWith("file:/")) {
-            String path = sourceUri.replaceFirst("^file\\:/+", "/");
-            File file = new File(path);
-            inputStream = new FileInputStream(file);
-        } else if (sourceUri.startsWith("content://")) {
-            inputStream = RNCloudFsModule.this.reactContext.getContentResolver().openInputStream(Uri.parse(sourceUri));
+    @Nullable
+    private static String guessMimeType(String url) {
+        String extension = MimeTypeMap.getFileExtensionFromUrl(url);
+        if (extension != null) {
+            return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
         } else {
-            URLConnection urlConnection = new URL(sourceUri).openConnection();
-            inputStream = urlConnection.getInputStream();
+            return null;
         }
-        return inputStream;
     }
 
-    private static void copyInputStreamToOutputStream(InputStream input, OutputStream output) throws IOException {
-        byte[] buffer = new byte[256];
-        int bytesRead;
-        while ((bytesRead = input.read(buffer)) != -1) {
-            output.write(buffer, 0, bytesRead);
+    private class SourceUri {
+        private final String sourceUri;
+
+        private SourceUri(String sourceUri) {
+            this.sourceUri = sourceUri;
         }
+
+        private InputStream read() throws IOException {
+            if (sourceUri.startsWith("/") || sourceUri.startsWith("file:/")) {
+                String path = sourceUri.replaceFirst("^file\\:/+", "/");
+                File file = new File(path);
+                return new FileInputStream(file);
+            } else if (sourceUri.startsWith("content://")) {
+                return RNCloudFsModule.this.reactContext.getContentResolver().openInputStream(Uri.parse(sourceUri));
+            } else {
+                URLConnection urlConnection = new URL(sourceUri).openConnection();
+                return urlConnection.getInputStream();
+            }
+        }
+
+        private void copyToOutputStream(OutputStream output) throws IOException {
+            InputStream input = read();
+            if(input == null)
+                throw new IllegalStateException("Cannot read " + sourceUri);
+
+            try {
+                byte[] buffer = new byte[256];
+                int bytesRead;
+                while ((bytesRead = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, bytesRead);
+                }
+            } finally {
+                input.close();
+            }
+        }
+
     }
 
     @Override
