@@ -13,24 +13,26 @@
 }
 RCT_EXPORT_MODULE()
 
-RCT_EXPORT_METHOD(copyToICloud:(NSString *)sourceUri :(NSString *)destinationPath
+RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)targetRelativePath :(NSString *)mimeType
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
+    // mimeType is ignored in iOS
+
     NSFileManager* fileManager = [NSFileManager defaultManager];
 
     if (![fileManager fileExistsAtPath:sourceUri isDirectory:nil]) {
         NSLog(@"source file does not exist %@", sourceUri);
         return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
     }
-    
+
     NSURL *sourceURL = [NSURL fileURLWithPath:sourceUri];
 
     [self rootDirectoryForICloud:^(NSURL *ubiquityURL) {
         if (ubiquityURL) {
-            NSURL* targetFile = [ubiquityURL URLByAppendingPathComponent:destinationPath];
+            NSURL* targetFile = [ubiquityURL URLByAppendingPathComponent:targetRelativePath];
             NSLog(@"Target file: %@", targetFile.path);
-            
+
             NSURL *dir = [targetFile URLByDeletingLastPathComponent];
             NSLog(@"Target dir: %@", dir.path);
             if (![fileManager fileExistsAtPath:dir.path isDirectory:nil]) {
@@ -39,18 +41,15 @@ RCT_EXPORT_METHOD(copyToICloud:(NSString *)sourceUri :(NSString *)destinationPat
 
             NSError *error;
             if ([fileManager setUbiquitous:YES itemAtURL:sourceURL destinationURL:targetFile error:&error]) {
-                
-                resolve(@{
-                          @"path": targetFile.absoluteString,
-                          });
+                return resolve(@{@"path": targetFile.absoluteString});
             } else {
                 NSLog(@"Error occurred: %@", error);
                 NSString *codeWithDomain = [NSString stringWithFormat:@"E%@%zd", error.domain.uppercaseString, error.code];
-                reject(codeWithDomain, error.localizedDescription, error);
+                return reject(codeWithDomain, error.localizedDescription, error);
             }
         } else {
             NSLog(@"Could not retrieve a ubiquityURL");
-            return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: could not copy to iCloud drive '%@'", sourceUri], nil);
+            return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: could not copy to iCloud drive '%@'", sourceUri.absolutePath], nil);
         }
     }];
 }
