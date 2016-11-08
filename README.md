@@ -15,7 +15,26 @@ Supported APIs: iCloud Drive (iOS), Google Drive (Android)
 
 On the device, make sure iCloud Drive is enabled.
 
-In xcode enable iCloud:
+In xcode...
+
+ * Add the following to `ios/<app-name>/Info.plist` (replacing _<app-name>_ and _<package-name>_ as appropriate):
+
+```
+<key>NSUbiquitousContainers</key>
+<dict>
+    <key>iCloud.<package-name></key>
+    <dict>
+        <key>NSUbiquitousContainerIsDocumentScopePublic</key>
+        <true/>
+        <key>NSUbiquitousContainerSupportedFolderLevels</key>
+        <string>One</string>
+        <key>NSUbiquitousContainerName</key>
+        <string><app-name></string>
+    </dict>
+</dict>
+```
+
+ * Enable iCloud:
 
 ![alt tag](docs/xcode.png)
 
@@ -55,14 +74,14 @@ RNCloudFs.copyToCloud(sourceUri, destinationPath, mimeType)
   })
 ```
 
-_sourceUri_: any url or **absolute** file path, e.g:
+_sourceUri_: any uri or **absolute** file path, e.g:
  * `/foo/bar/file.txt`
  * `file://foo/bar/file.txt`
  * `http://www.files.com/foo/bar/file.txt`
  * `content://media/external/images/media/296` (android only)
- * `assets-library://asset/asset.JPG?id=106E99A1-4F6A-45A2-B320-B0AD4A8E8473&ext=JPG` (iOS only)
+ * (todo) `assets-library://asset/asset.JPG?id=106E99A1-4F6A-45A2-B320-B0AD4A8E8473&ext=JPG` (iOS only)
  
-_destinationPath_: a **relative** path (including a filename) under which the file will be placed, e.g:
+_destinationPath_: a **relative** path including a filename under which the file will be placed, e.g:
  * `my-cloud-text-file.txt`
  * `foo/bar/my-cloud-text-file.txt`
  
