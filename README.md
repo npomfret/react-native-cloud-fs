@@ -1,6 +1,10 @@
 
 # react-native-cloud-fs
 
+A react-native library for reading and writing file with cloud based file systems.
+
+Supported APIs: iCloud Drive (iOS), Google Drive (Android)
+
 ## Getting started
 
 `$ npm install react-native-cloud-fs --save`
@@ -9,39 +13,23 @@
 
 `$ react-native link react-native-cloud-fs`
 
-### Manual installation
-
-
-#### iOS
-
-1. In XCode, in the project navigator, right click `Libraries` ➜ `Add Files to [your project's name]`
-2. Go to `node_modules` ➜ `react-native-cloud-fs` and add `RNCloudFs.xcodeproj`
-3. In XCode, in the project navigator, select your project. Add `libRNCloudFs.a` to your project's `Build Phases` ➜ `Link Binary With Libraries`
-4. Run your project (`Cmd+R`)<
-
-#### Android
-
-1. Open up `android/app/src/main/java/[...]/MainActivity.java`
-  - Add `import com.reactlibrary.RNCloudFsPackage;` to the imports at the top of the file
-  - Add `new RNCloudFsPackage()` to the list returned by the `getPackages()` method
-2. Append the following lines to `android/settings.gradle`:
-  	```
-  	include ':react-native-cloud-fs'
-  	project(':react-native-cloud-fs').projectDir = new File(rootProject.projectDir, 	'../node_modules/react-native-cloud-fs/android')
-  	```
-3. Insert the following lines inside the dependencies block in `android/app/build.gradle`:
-  	```
-      compile project(':react-native-cloud-fs')
-  	```
-
-#### Windows
-[Read it! :D](https://github.com/ReactWindows/react-native)
-
-1. In Visual Studio add the `RNCloudFs.sln` in `node_modules/react-native-cloud-fs/windows/RNCloudFs.sln` folder to their solution, reference from their app.
-2. Open up your `MainPage.cs` app
-  - Add `using Cl.Json.RNCloudFs;` to the usings at the top of the file
-  - Add `new RNCloudFsPackage()` to the `List<IReactPackage>` returned by the `Packages` method
-      
+### Enable Google Drive API
+  - Create a [new project](https://console.developers.google.com/apis/dashboard) for your app (if you don't already have one)
+    - Under `Credentials`, choose `New Credentials` > `OAth client ID`
+      - Choose `Configure consent screen`
+        - enter a product name
+        - save it
+      - Choose `Application type` > `Android`
+        - enter a name
+        - enter your SHA1 fingerprint (use the keytool to find it, eg: `keytool -exportcert -alias androiddebugkey -keystore ~/.android/debug.keystore -list -v`)
+        - enter your package name
+        - click `create` and make a note of your OAuth client id
+  - Click Library, choose `Drive API` and enable it
+    - Click `Drive UI Integration`
+      - add the mandatory icons
+      - under `Drive integration` > `Authentication` > `Automatically show OAuth 2.0 consent screen when users open my application from Google Drive` enter your OAuth client ID 
+  
+Here's a [video](https://www.youtube.com/watch?v=RezC1XP6jcs&feature=youtu.be&t=3m55s) of someone doing a similar thing for the Google Drive API demo.
 
 ## Usage
 ```javascript
