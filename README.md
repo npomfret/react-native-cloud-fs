@@ -39,7 +39,11 @@ In xcode...
 ![alt tag](docs/xcode.png)
 
 ### Android
+
 Enable Google Drive API:
+
+It's complicated! Here's a [video](https://www.youtube.com/watch?v=RezC1XP6jcs&feature=youtu.be&t=3m55s) of someone doing a similar thing for the Google Drive API demo.
+
   - Create a [new project](https://console.developers.google.com/apis/dashboard) for your app (if you don't already have one)
     - Under `Credentials`, choose `New Credentials` > `OAth client ID`
       - Choose `Configure consent screen`
@@ -53,9 +57,7 @@ Enable Google Drive API:
   - Click Library, choose `Drive API` and enable it
     - Click `Drive UI Integration`
       - add the mandatory icons
-      - under `Drive integration` > `Authentication` > `Automatically show OAuth 2.0 consent screen when users open my application from Google Drive` enter your OAuth client ID 
-  
-Here's a [video](https://www.youtube.com/watch?v=RezC1XP6jcs&feature=youtu.be&t=3m55s) of someone doing a similar thing for the Google Drive API demo.
+      - under `Drive integration` > `Authentication` > `Automatically show OAuth 2.0 consent screen when users open my application from Google Drive` enter your OAuth client ID   
 
 ## Usage
 ```javascript
@@ -63,7 +65,7 @@ import RNCloudFs from 'react-native-cloud-fs';
 ```
 
 ### copyToCloud
-Copies the content of the sourceUri to a file in the could file system.
+Copies the content of the sourceUri to a file in the cloud file system.
 
 ```javascript
 RNCloudFs.copyToCloud(sourceUri, destinationPath, mimeType)
