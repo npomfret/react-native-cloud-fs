@@ -55,6 +55,7 @@ RCT_EXPORT_METHOD(copyToICloud:(NSString *)sourceUri :(NSString *)targetRelative
     }];
 }
 
+
 - (void)rootDirectoryForICloud:(void (^)(NSURL *))completionHandler {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSFileManager* fileManager = [NSFileManager defaultManager];
