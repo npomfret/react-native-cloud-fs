@@ -56,12 +56,14 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @ReactMethod
-    public void copyToICloud(final String sourceUri, final String targetRelativePath, final Promise promise) {
-        String folder = getApplicationName(reactContext) + "/" + targetRelativePath;
+    public void copyToICloud(final String sourceUri, final String destinationPath, final Promise promise) {
+        String folder = getApplicationName(reactContext) + "/" + destinationPath;
 
         List<String> names = new ArrayList<>();
         for (String name : folder.split("/")) {
-            names.add(name);
+            if(name.trim().length() > 0) {
+                names.add(name);
+            }
         }
 
         createFileInFolders(Drive.DriveApi.getRootFolder(googleApiClient), names, sourceUri, promise);

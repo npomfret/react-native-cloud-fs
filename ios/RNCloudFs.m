@@ -13,7 +13,7 @@
 }
 RCT_EXPORT_MODULE()
 
-RCT_EXPORT_METHOD(copyToICloud:(NSString *)sourceUri :(NSString *)targetRelativePath
+RCT_EXPORT_METHOD(copyToICloud:(NSString *)sourceUri :(NSString *)destinationPath
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
@@ -28,7 +28,7 @@ RCT_EXPORT_METHOD(copyToICloud:(NSString *)sourceUri :(NSString *)targetRelative
 
     [self rootDirectoryForICloud:^(NSURL *ubiquityURL) {
         if (ubiquityURL) {
-            NSURL* targetFile = [ubiquityURL URLByAppendingPathComponent:targetRelativePath];
+            NSURL* targetFile = [ubiquityURL URLByAppendingPathComponent:destinationPath];
             NSLog(@"Target file: %@", targetFile.path);
             
             NSURL *dir = [targetFile URLByDeletingLastPathComponent];
