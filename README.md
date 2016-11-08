@@ -11,7 +11,16 @@ Supported APIs: iCloud Drive (iOS), Google Drive (Android)
 
 `$ react-native link react-native-cloud-fs`
 
-### Enable Google Drive API
+### iOS
+
+On the device, make sure iCloud Drive is enabled.
+
+In xcode enable iCloud:
+
+![alt tag](docs/xcode.png)
+
+### Android
+Enable Google Drive API:
   - Create a [new project](https://console.developers.google.com/apis/dashboard) for your app (if you don't already have one)
     - Under `Credentials`, choose `New Credentials` > `OAth client ID`
       - Choose `Configure consent screen`
