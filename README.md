@@ -62,7 +62,8 @@ Here's a [video](https://www.youtube.com/watch?v=RezC1XP6jcs&feature=youtu.be&t=
 import RNCloudFs from 'react-native-cloud-fs';
 ```
 
-### copyToICloud
+### copyToCloud
+Copies the content of the sourceUri to a file in the could file system.
 
 ```javascript
 RNCloudFs.copyToCloud(sourceUri, destinationPath, mimeType)
