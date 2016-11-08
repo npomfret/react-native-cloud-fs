@@ -17,19 +17,19 @@ On the device, make sure iCloud Drive is enabled.
 
 In xcode...
 
- * Add the following to `ios/<app-name>/Info.plist` (replacing _<app-name>_ and _<package-name>_ as appropriate):
+ * Add the following to `ios/app-name/Info.plist` (replacing _app-name_ and _package-name_ as appropriate):
 
 ```
 <key>NSUbiquitousContainers</key>
 <dict>
-    <key>iCloud.<package-name></key>
+    <key>iCloud.package-name</key>
     <dict>
         <key>NSUbiquitousContainerIsDocumentScopePublic</key>
         <true/>
         <key>NSUbiquitousContainerSupportedFolderLevels</key>
         <string>One</string>
         <key>NSUbiquitousContainerName</key>
-        <string><app-name></string>
+        <string>app-name</string>
     </dict>
 </dict>
 ```
