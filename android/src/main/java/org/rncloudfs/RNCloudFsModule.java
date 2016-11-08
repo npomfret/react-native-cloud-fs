@@ -30,6 +30,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.List;
 
 public class RNCloudFsModule extends ReactContextBaseJavaModule implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
     private static final String TAG = "RNCloudFs";
@@ -41,49 +43,53 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     public RNCloudFsModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
+
+        googleApiClient = new GoogleApiClient.Builder(reactContext)
+                .addApi(Drive.API)
+                .addScope(Drive.SCOPE_FILE)
+                .addScope(Drive.SCOPE_APPFOLDER)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
+
+        googleApiClient.connect();
     }
 
     @ReactMethod
     public void copyToICloud(final String sourceUri, final String targetRelativePath, final Promise promise) {
-        if (googleApiClient == null) {
-            googleApiClient = new GoogleApiClient.Builder(getCurrentActivity())
-                    .addApi(Drive.API)
-                    .addScope(Drive.SCOPE_FILE)
-                    .addScope(Drive.SCOPE_APPFOLDER)
-                    .addConnectionCallbacks(this)
-                    .addOnConnectionFailedListener(this)
-                    .build();
+        String folder = getApplicationName(reactContext) + "/" + targetRelativePath;
 
-            googleApiClient.connect();
+        List<String> names = new ArrayList<>();
+        for (String name : folder.split("/")) {
+            names.add(name);
         }
 
-        final String folder = getApplicationName(reactContext) + "/" + targetRelativePath;
+        createFileInFolders(Drive.DriveApi.getRootFolder(googleApiClient), names, sourceUri, promise);
+    }
 
-        try {
-            int i = folder.lastIndexOf('/');
-            String dir = folder.substring(0, i);
+    private void createFileInFolders(DriveFolder parentFolder, final List<String> names, final String sourceUri, final Promise promise) {
+        if(names.size() > 1) {
+            final String name = names.remove(0);
 
             MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
-                    .setTitle(dir)
+                    .setTitle(name)
                     .build();
 
-            Drive.DriveApi.getRootFolder(googleApiClient)
-                    .createFolder(googleApiClient, changeSet)
+            parentFolder.createFolder(googleApiClient, changeSet)
                     .setResultCallback(new ResultCallback<DriveFolder.DriveFolderResult>() {
                         @Override
-                        public void onResult(@NonNull DriveFolder.DriveFolderResult driveFolderResult) {
-                            DriveFolder driveFolder = driveFolderResult.getDriveFolder();
+                        public void onResult(@NonNull DriveFolder.DriveFolderResult result) {
+                            Log.i(TAG, "Created folder '" + name + "'");
 
-                            createFileInFolder(driveFolder, sourceUri, promise, folder);
+                            createFileInFolders(result.getDriveFolder(), names, sourceUri, promise);
                         }
                     });
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to save file", e);
-            promise.reject("failed", e.getMessage());
+        } else {
+            createFileInFolder(parentFolder, sourceUri, promise, names.get(0));
         }
     }
 
-    private void createFileInFolder(final DriveFolder driveFolder, final String sourceUri, final Promise promise, final String targetRelativePath) {
+    private void createFileInFolder(final DriveFolder driveFolder, final String sourceUri, final Promise promise, final String filename) {
         Drive.DriveApi.newDriveContents(googleApiClient).setResultCallback(new ResultCallback<DriveApi.DriveContentsResult>() {
             @Override
             public void onResult(@NonNull DriveApi.DriveContentsResult result) {
@@ -107,14 +113,6 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                     copyInputStreamToOutputStream(inputStream, outputStream);
                     outputStream.close();
                     inputStream.close();
-
-                    int i = targetRelativePath.lastIndexOf('/');
-                    String filename;
-                    if (i < 0) {
-                        filename = targetRelativePath;
-                    } else {
-                        filename = targetRelativePath.substring(i + 1);
-                    }
 
                     MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
                             .setTitle(filename)
@@ -164,7 +162,7 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
 
     private static void copyInputStreamToOutputStream(InputStream input, OutputStream output) throws IOException {
         byte[] buffer = new byte[256];
-        int bytesRead = 0;
+        int bytesRead;
         while ((bytesRead = input.read(buffer)) != -1) {
             output.write(buffer, 0, bytesRead);
         }
