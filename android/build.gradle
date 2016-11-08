@@ -1,9 +1,17 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:2.1.3'
+    }
+}
 
 apply plugin: 'com.android.library'
 
 android {
     compileSdkVersion 23
-    buildToolsVersion "23.0.1"
+    buildToolsVersion "23.0.3"
 
     defaultConfig {
         minSdkVersion 16
@@ -19,7 +27,13 @@ android {
     }
 }
 
+allprojects {
+    repositories {
+        jcenter()
+    }
+}
+
 dependencies {
-    compile 'com.facebook.react:react-native:0.20.+'
+    compile 'com.facebook.react:react-native:+'
 }
   
