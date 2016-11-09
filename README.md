@@ -67,7 +67,7 @@ import RNCloudFs from 'react-native-cloud-fs';
 ```
 
 ### copyToCloud
-Copies the content of the `sourceUri` to a file in the cloud file system.  The files will appear in a directory named after the containing app followed by the `destinationPath`.  The directory for the destination path will be created. If the target file already exists it will return an error (the target path will not get overwritten). 
+Copies the content of a uri or file to a file in the target file system.  The files will appear in a directory named after the containing app followed by the `destinationPath`.  The directory hierarchy for the destination path will be created if it doesn't already exist. If the target file already exists it will not be overwritten, an error will be thrown. 
 
 ```javascript
 const sourceUri = {uri: 'https://foo.com/bar.pdf'};

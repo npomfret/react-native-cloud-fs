@@ -7,6 +7,7 @@
  * `copyToCloud`
    * add option to overwrite existing file 
    * add optional http headers
+   * ...think about return type, if any
  * fix android implementation so it disconnects and reconnects
  * `createCloudFile`
    * write arbitrary text to a file
@@ -21,7 +22,8 @@
  * `listCloudFiles`
    * get metadata for file (isDirectory, size, content-type etc)
  * check what happens (and fix) if a destination path contains non-filename safe characters ('#', '<', '$', '+', '%', '>', '!', '`', '&', '*', '‘', '|', '{', '?', '“', '=', '}', '/', ':', '\\', '@') [source](http://www.mtu.edu/umc/services/digital/writing/characters-avoid/).  _iOS only_
-
+ * sensible & descriptive error messages for all error scenarios
+ 
 ## ExampleApp
 
  * link to file in icloud drive
