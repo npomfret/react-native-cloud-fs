@@ -25,8 +25,8 @@ export default class RNCloudFSExample extends Component {
       })
   }
 
-  _saveFile() {
-    return RNCloudFs.copyToCloud(this.state.tmpFilePath, "folder-a/folder-b/my-file." + new Date().toISOString() + ".txt", null)
+  _saveFile(path) {
+    return RNCloudFs.copyToCloud(path, "folder-a/folder-b/my-file." + new Date().toISOString() + ".txt", null)
       .then((res) => {
         console.log("it worked", res);
       })
@@ -40,6 +40,7 @@ export default class RNCloudFSExample extends Component {
       <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: 8}}>
         <Container saveFile={this._saveFile} path={this.state.tmpFilePath} heading="absolute path"/>
         <Container saveFile={this._saveFile} path={"file:/" + this.state.tmpFilePath} heading="file url" />
+        <Container saveFile={this._saveFile} path={"https://raw.githubusercontent.com/npomfret/react-native-cloud-fs/master/README.md"} heading="url" />
       </View>
     );
   }
@@ -57,7 +58,7 @@ class Container extends Component {
         <Text style={styles.heading}>{this.props.heading}</Text>
         <TextInput style={{height: 20, borderColor: 'gray', borderWidth: 1, fontSize: 10, paddingHorizontal: 2}} value={this.props.path}/>
         <View style={{flexDirection: 'row', justifyContent: 'center'}}>
-          <TouchableOpacity onPress={this.props.saveFile}><Text style={styles.button}>save to cloud</Text></TouchableOpacity>
+          <TouchableOpacity onPress={() => this.props.saveFile(this.props.path)}><Text style={styles.button}>save to cloud</Text></TouchableOpacity>
         </View>
       </View>
     </View>

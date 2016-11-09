@@ -13,7 +13,7 @@
 }
 RCT_EXPORT_MODULE()
 
-RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)targetRelativePath :(NSString *)mimeType
+RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)destinationPath :(NSString *)mimeType
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
 
@@ -22,28 +22,57 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)targetRelativeP
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSFileManager* fileManager = [NSFileManager defaultManager];
 
-        NSURL *sourceURL;
+        NSString *tempFile;
+
         if ([fileManager fileExistsAtPath:sourceUri isDirectory:nil]) {
-            sourceURL = [NSURL fileURLWithPath:sourceUri];
+            NSURL *sourceURL = [NSURL fileURLWithPath:sourceUri];
+
+            // todo: figure out how to *copy* to icloud drive
+            // ...setUbiquitous will move the file instead of copying it, so as a work around lets copy it to a tmp file first
+            NSString *filename = [sourceUri lastPathComponent];
+            tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+            NSError *error;
+            [fileManager copyItemAtPath:sourceURL toPath:tempFile error:&error];
+            NSLog(@"Moving file %@ to %@", tempFile, destinationPath);
+
         } else if ([sourceUri hasPrefix:@"file:/"]) {
             NSError *error;
             NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^file:/+" options:NSRegularExpressionCaseInsensitive error:&error];
             NSString *modifiedSourceUri = [regex stringByReplacingMatchesInString:sourceUri options:0 range:NSMakeRange(0, [sourceUri length]) withTemplate:@"/"];
 
             if ([fileManager fileExistsAtPath:modifiedSourceUri isDirectory:nil]) {
-                sourceURL = [NSURL fileURLWithPath:modifiedSourceUri];
+                NSURL *sourceURL = [NSURL fileURLWithPath:modifiedSourceUri];
+
+                // todo: figure out how to *copy* to icloud drive
+                // ...setUbiquitous will move the file instead of copying it, so as a work around lets copy it to a tmp file first
+                NSString *filename = [sourceUri lastPathComponent];
+                tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+                NSError *error;
+                [fileManager copyItemAtPath:sourceURL toPath:tempFile error:&error];
+                NSLog(@"Moving file %@ to %@", tempFile, destinationPath);
             } else {
                 NSLog(@"source file does not exist %@", sourceUri);
                 return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
             }
         } else {
-            NSLog(@"source file does not exist %@", sourceUri);
-            return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
+            NSURL *url = [NSURL URLWithString:sourceUri];
+            NSData *urlData = [NSData dataWithContentsOfURL:url];
+            if (urlData) {
+                NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+                NSString *documentsDirectory = [paths objectAtIndex:0];
+
+                NSString *filename = [sourceUri lastPathComponent];
+                tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+                [urlData writeToFile:tempFile atomically:YES];
+            } else {
+                NSLog(@"source file does not exist %@", sourceUri);
+                return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
+            }
         }
 
         [self rootDirectoryForICloud:^(NSURL *ubiquityURL) {
             if (ubiquityURL) {
-                NSURL* targetFile = [ubiquityURL URLByAppendingPathComponent:targetRelativePath];
+                NSURL* targetFile = [ubiquityURL URLByAppendingPathComponent:destinationPath];
                 NSLog(@"Target file: %@", targetFile.path);
 
                 NSURL *dir = [targetFile URLByDeletingLastPathComponent];
@@ -51,14 +80,7 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)targetRelativeP
                     [fileManager createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
                 }
 
-                // todo: figure out how to *copy* to icloud drive
-                // ...setUbiquitous will move the file instead of copying it, so as a work around lets copy it to a tmp file first
-                NSString *filename = [sourceUri lastPathComponent];
-                NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
                 NSError *error;
-                [fileManager copyItemAtPath:sourceURL toPath:tempFile error:&error];
-                NSLog(@"Moving file %@ to %@", tempFile, targetFile);
-
                 if ([fileManager setUbiquitous:YES itemAtURL:[NSURL fileURLWithPath:tempFile] destinationURL:targetFile error:&error]) {
                     return resolve(@{@"path": targetFile.absoluteString});
                 } else {
@@ -73,7 +95,6 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)targetRelativeP
         }];
     });
 }
-
 
 - (void)rootDirectoryForICloud:(void (^)(NSURL *))completionHandler {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
