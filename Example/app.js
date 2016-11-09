@@ -1,7 +1,7 @@
 'use strict';
 
 import React, {Component} from "react";
-import {AppRegistry, TouchableOpacity, StyleSheet, Text, View, TextInput} from "react-native";
+import {AppRegistry, TouchableOpacity, StyleSheet, Text, View, TextInput, Platform, CameraRoll} from "react-native";
 import RNFS from "react-native-fs";
 import RNCloudFs from "react-native-cloud-fs";
 
@@ -12,7 +12,10 @@ export default class RNCloudFSExample extends Component {
     this._saveFile = this._saveFile.bind(this);
 
     this.state = {
-      tmpFilePath: ""
+      tmpFilePath: "",
+      filename: "",
+      imageFilename: "",
+      imagePath: ""
     }
   }
 
@@ -21,12 +24,44 @@ export default class RNCloudFSExample extends Component {
 
     RNFS.writeFile(tmpFilePath, 'This is a test file ' + new Date().toISOString(), 'utf8')
       .then(() => {
-        this.setState({tmpFilePath: tmpFilePath})
+        this.setState({
+          tmpFilePath: tmpFilePath,
+          filename: "my-file." + new Date().toISOString() + ".txt"
+        })
+      });
+
+    RNCloudFSExample._getPhotosFromCameraRoll(1)
+      .then((res) => {
+        console.log("res", res);
+        if (res.edges.length > 0) {
+          this.setState({
+            imagePath: res.edges[0].node.image.uri,
+            imageFilename: res.edges[0].node.image.filename
+          });
+        }
       })
   }
 
-  _saveFile(path) {
-    return RNCloudFs.copyToCloud(path, "folder-a/folder-b/my-file." + new Date().toISOString() + ".txt", null)
+  static _getPhotosFromCameraRoll(count, after) {
+    const fetchParams = {
+      first: count,
+      groupTypes: "SavedPhotos",
+      assetType: "Photos"
+    };
+
+    if (after) {
+      fetchParams.after = after;
+    }
+
+    if (Platform.OS === "android") {
+      delete fetchParams.groupTypes;
+    }
+
+    return CameraRoll.getPhotos(fetchParams);
+  }
+
+  _saveFile(sourcePath, targetPath) {
+    return RNCloudFs.copyToCloud(sourcePath, targetPath, null)
       .then((res) => {
         console.log("it worked", res);
       })
@@ -38,9 +73,29 @@ export default class RNCloudFSExample extends Component {
   render() {
     return (
       <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: 8}}>
-        <Container saveFile={this._saveFile} path={this.state.tmpFilePath} heading="absolute path"/>
-        <Container saveFile={this._saveFile} path={"file:/" + this.state.tmpFilePath} heading="file url" />
-        <Container saveFile={this._saveFile} path={"https://raw.githubusercontent.com/npomfret/react-native-cloud-fs/master/README.md"} heading="url" />
+        <Container
+          saveFile={this._saveFile}
+          sourcePath={this.state.tmpFilePath}
+          targetPath={"absolute-path-demo/" + this.state.filename}
+          heading="absolute path"/>
+
+        <Container
+          saveFile={this._saveFile}
+          sourcePath={"file:/" + this.state.tmpFilePath}
+          targetPath={"file-url-demo/" + this.state.filename}
+          heading="file url"/>
+
+        <Container
+          saveFile={this._saveFile}
+          sourcePath={"https://raw.githubusercontent.com/npomfret/react-native-cloud-fs/master/README.md"}
+          targetPath={"web-url-demo/README.md"}
+          heading="url"/>
+
+        <Container
+          saveFile={this._saveFile}
+          sourcePath={this.state.imagePath}
+          targetPath={"image-demo/" + this.state.imageFilename}
+          heading="internal url"/>
       </View>
     );
   }
@@ -48,7 +103,9 @@ export default class RNCloudFSExample extends Component {
 
 class Container extends Component {
   static propTypes = {
-    path: React.PropTypes.string.isRequired,
+    sourcePath: React.PropTypes.string.isRequired,
+    targetPath: React.PropTypes.string.isRequired,
+    heading: React.PropTypes.string.isRequired,
     saveFile: React.PropTypes.func.isRequired,
   };
 
@@ -56,9 +113,12 @@ class Container extends Component {
     return <View style={styles.container}>
       <View style={{flex: 1}}>
         <Text style={styles.heading}>{this.props.heading}</Text>
-        <TextInput style={{height: 20, borderColor: 'gray', borderWidth: 1, fontSize: 10, paddingHorizontal: 2}} value={this.props.path}/>
-        <View style={{flexDirection: 'row', justifyContent: 'center'}}>
-          <TouchableOpacity onPress={() => this.props.saveFile(this.props.path)}><Text style={styles.button}>save to cloud</Text></TouchableOpacity>
+        <TextInput style={styles.url} value={this.props.sourcePath}/>
+        <View style={{alignItems: 'center'}}>
+          <View style={{flexDirection: 'row', justifyContent: 'center'}}>
+            <TouchableOpacity onPress={() => this.props.saveFile(this.props.sourcePath)}><Text style={styles.button}>save to cloud</Text></TouchableOpacity>
+          </View>
+          <Text style={[styles.heading, {fontStyle: 'italic'}]}>({this.props.targetPath})</Text>
         </View>
       </View>
     </View>
@@ -77,6 +137,14 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 12,
     textAlign: 'left'
+  },
+  url: {
+    height: 20,
+    borderColor: 'gray',
+    borderWidth: 1,
+    fontSize: 8,
+    paddingHorizontal: 2,
+    color: 'blue'
   },
   button: {
     margin: 2,
