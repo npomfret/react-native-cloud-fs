@@ -69,7 +69,7 @@ import RNCloudFs from 'react-native-cloud-fs';
 ```
 
 ### copyToCloud
-Copies the content of the sourceUri to a file in the cloud file system.
+Copies the content of the sourceUri to a file in the cloud file system.  If the target file already exists it will return an error (it will not overwrite it).
 
 ```javascript
 RNCloudFs.copyToCloud(sourceUri, destinationPath, mimeType)
