@@ -50,13 +50,14 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @ReactMethod
-    public void copyToCloud(final String sourceUri, final String destinationPath, @Nullable String mimeType, final Promise promise) {
+    public void copyToCloud(String sourceUri, String destinationPath, @Nullable String mimeType, Promise promise) {
         if(mimeType == null) {
             mimeType = guessMimeType(sourceUri);
         }
 
         String folder = getApplicationName(reactContext) + "/" + destinationPath;
 
+        // needs to be an async task because it may do some network access
         CopyToGoogleDriveTask copyToGoogleDriveTask = new CopyToGoogleDriveTask(
                 googleApiClient,
                 folder,
@@ -84,21 +85,21 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     public class SourceUri {
-        private final String sourceUri;
+        public final String uri;
 
-        private SourceUri(String sourceUri) {
-            this.sourceUri = sourceUri;
+        private SourceUri(String uri) {
+            this.uri = uri;
         }
 
         private InputStream read() throws IOException {
-            if (sourceUri.startsWith("/") || sourceUri.startsWith("file:/")) {
-                String path = sourceUri.replaceFirst("^file\\:/+", "/");
+            if (uri.startsWith("/") || uri.startsWith("file:/")) {
+                String path = uri.replaceFirst("^file\\:/+", "/");
                 File file = new File(path);
                 return new FileInputStream(file);
-            } else if (sourceUri.startsWith("content://")) {
-                return RNCloudFsModule.this.reactContext.getContentResolver().openInputStream(Uri.parse(sourceUri));
+            } else if (uri.startsWith("content://")) {
+                return RNCloudFsModule.this.reactContext.getContentResolver().openInputStream(Uri.parse(uri));
             } else {
-                URLConnection urlConnection = new URL(sourceUri).openConnection();
+                URLConnection urlConnection = new URL(uri).openConnection();
                 return urlConnection.getInputStream();
             }
         }
@@ -106,7 +107,7 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
         public void copyToOutputStream(OutputStream output) throws IOException {
             InputStream input = read();
             if(input == null)
-                throw new IllegalStateException("Cannot read " + sourceUri);
+                throw new IllegalStateException("Cannot read " + uri);
 
             try {
                 byte[] buffer = new byte[256];
@@ -151,5 +152,4 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     public String getName() {
         return "RNCloudFs";
     }
-
 }

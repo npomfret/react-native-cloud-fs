@@ -10,7 +10,6 @@ import com.google.android.gms.drive.Drive;
 import com.google.android.gms.drive.DriveApi;
 import com.google.android.gms.drive.DriveContents;
 import com.google.android.gms.drive.DriveFolder;
-import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.Metadata;
 import com.google.android.gms.drive.MetadataBuffer;
 import com.google.android.gms.drive.MetadataChangeSet;
@@ -37,25 +36,26 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
 
     @Override
     protected Void doInBackground(RNCloudFsModule.SourceUri... params) {
-        List<String> names = new ArrayList<>();
+        List<String> parthParts = new ArrayList<>();
         for (String name : outputPath.split("/")) {
             if(name.trim().length() > 0) {
-                names.add(name);
+                parthParts.add(name);
             }
         }
 
+        RNCloudFsModule.SourceUri sourceUri = params[0];
         try {
             DriveFolder rootFolder = Drive.DriveApi.getRootFolder(googleApiClient);
-            createFileInFolders(rootFolder, names, params[0]);
+            createFileInFolders(rootFolder, parthParts, sourceUri);
         } catch (Exception e) {
             Log.e(TAG, "Failed to write " + outputPath, e);
-            promise.reject("Failed to read input", e);
+            promise.reject("Failed copy '" + sourceUri.uri + "' to " + outputPath, e);
         }
 
         return null;
     }
 
-    private void createFileInFolders(DriveFolder parentFolder, final List<String> pathParts, final RNCloudFsModule.SourceUri sourceUri) {
+    private void createFileInFolders(DriveFolder parentFolder, List<String> pathParts, RNCloudFsModule.SourceUri sourceUri) {
         if (pathParts.size() > 1) {
             String name = pathParts.remove(0);
 
@@ -100,7 +100,7 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
         return null;
     }
 
-    private void createFileInFolder(final DriveFolder driveFolder, final RNCloudFsModule.SourceUri sourceUri, final String filename) {
+    private void createFileInFolder(DriveFolder driveFolder, RNCloudFsModule.SourceUri sourceUri, String filename) {
         Metadata metadata = find(driveFolder, filename);
         if(metadata != null) {
             throw new IllegalStateException("Item already exists at " + outputPath);
@@ -129,7 +129,7 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
 
             DriveFolder.DriveFileResult driveFileResult = driveFolder.createFile(googleApiClient, builder.build(), driveContents).await();
             Log.i(TAG, "Created a file '" + filename + "' with content: " + driveFileResult.getDriveFile().getDriveId());
-            promise.resolve(driveFileResult.getDriveFile().toString());
+            promise.resolve(driveFileResult.getDriveFile().getDriveId().toString());
         } catch (Exception e) {
             Log.e(TAG, "Failed to read " + sourceUri, e);
             promise.reject("Failed to read input", e);
