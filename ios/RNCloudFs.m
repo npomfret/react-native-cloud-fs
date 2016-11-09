@@ -22,12 +22,24 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)targetRelativeP
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSFileManager* fileManager = [NSFileManager defaultManager];
 
-        if (![fileManager fileExistsAtPath:sourceUri isDirectory:nil]) {
+        NSURL *sourceURL;
+        if ([fileManager fileExistsAtPath:sourceUri isDirectory:nil]) {
+            sourceURL = [NSURL fileURLWithPath:sourceUri];
+        } else if ([sourceUri hasPrefix:@"file:/"]) {
+            NSError *error;
+            NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^file:/+" options:NSRegularExpressionCaseInsensitive error:&error];
+            NSString *modifiedSourceUri = [regex stringByReplacingMatchesInString:sourceUri options:0 range:NSMakeRange(0, [sourceUri length]) withTemplate:@"/"];
+
+            if ([fileManager fileExistsAtPath:modifiedSourceUri isDirectory:nil]) {
+                sourceURL = [NSURL fileURLWithPath:modifiedSourceUri];
+            } else {
+                NSLog(@"source file does not exist %@", sourceUri);
+                return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
+            }
+        } else {
             NSLog(@"source file does not exist %@", sourceUri);
             return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
         }
-
-        NSURL *sourceURL = [NSURL fileURLWithPath:sourceUri];
 
         [self rootDirectoryForICloud:^(NSURL *ubiquityURL) {
             if (ubiquityURL) {
@@ -61,6 +73,7 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)targetRelativeP
         }];
     });
 }
+
 
 - (void)rootDirectoryForICloud:(void (^)(NSURL *))completionHandler {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
