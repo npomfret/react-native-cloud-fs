@@ -73,7 +73,7 @@ RNCloudFs.copyToCloud(sourceUri, destinationPath, mimeType)
     console.log("it worked", res);
   })
   .catch((err) => {
-    console.warn("it failed", res);
+    console.warn("it failed", err);
   })
 ```
 
