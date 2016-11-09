@@ -82,7 +82,7 @@ _sourceUri_: any uri or **absolute** file path, e.g:
  * `file://foo/bar/file.txt`
  * `http://www.files.com/foo/bar/file.txt`
  * `content://media/external/images/media/296` (android only)
- * (todo) `assets-library://asset/asset.JPG?id=106E99A1-4F6A-45A2-B320-B0AD4A8E8473&ext=JPG` (iOS only)
+ * `assets-library://asset/asset.JPG?id=106E99A1-4F6A-45A2-B320-B0AD4A8E8473&ext=JPG` (iOS only)
  
 _destinationPath_: a **relative** path including a filename under which the file will be placed, e.g:
  * `my-cloud-text-file.txt`
