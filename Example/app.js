@@ -9,10 +9,10 @@ export default class RNCloudFSExample extends Component {
   constructor(props) {
     super(props);
 
-    this.saveFile = this.saveFile.bind(this);
+    this._saveFile = this._saveFile.bind(this);
 
     this.state = {
-      tmpFilePath: "fff"
+      tmpFilePath: ""
     }
   }
 
@@ -25,7 +25,7 @@ export default class RNCloudFSExample extends Component {
       })
   }
 
-  saveFile() {
+  _saveFile() {
     return RNCloudFs.copyToCloud(this.state.tmpFilePath, "folder-a/folder-b/my-file." + new Date().toISOString() + ".txt", null)
       .then((res) => {
         console.log("it worked", res);
@@ -38,17 +38,29 @@ export default class RNCloudFSExample extends Component {
   render() {
     return (
       <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: 8}}>
-        <View style={styles.container}>
-          <View style={{flex: 1}}>
-            <Text style={styles.heading}>absolute path</Text>
-            <TextInput style={{height: 20, borderColor: 'gray', borderWidth: 1, fontSize: 10}} value={this.state.tmpFilePath}/>
-            <View style={{flexDirection: 'row', justifyContent: 'center'}}>
-              <TouchableOpacity onPress={this.saveFile}><Text style={styles.button}>save to cloud</Text></TouchableOpacity>
-            </View>
-          </View>
-        </View>
+        <Container saveFile={this._saveFile} path={this.state.tmpFilePath} heading="absolute path"/>
+        <Container saveFile={this._saveFile} path={"file:/" + this.state.tmpFilePath} heading="file url" />
       </View>
     );
+  }
+}
+
+class Container extends Component {
+  static propTypes = {
+    path: React.PropTypes.string.isRequired,
+    saveFile: React.PropTypes.func.isRequired,
+  };
+
+  render() {
+    return <View style={styles.container}>
+      <View style={{flex: 1}}>
+        <Text style={styles.heading}>{this.props.heading}</Text>
+        <TextInput style={{height: 20, borderColor: 'gray', borderWidth: 1, fontSize: 10, paddingHorizontal: 2}} value={this.props.path}/>
+        <View style={{flexDirection: 'row', justifyContent: 'center'}}>
+          <TouchableOpacity onPress={this.props.saveFile}><Text style={styles.button}>save to cloud</Text></TouchableOpacity>
+        </View>
+      </View>
+    </View>
   }
 }
 
