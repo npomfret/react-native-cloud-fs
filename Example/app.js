@@ -28,7 +28,7 @@ export default class RNCloudFSExample extends Component {
         })
       });
 
-    RNCloudFSExample._getPhotosFromCameraRoll(1)
+    RNCloudFSExample._getPhoto()
       .then((res) => {
         console.log("res", res);
         if (res.edges.length > 0) {
@@ -40,16 +40,12 @@ export default class RNCloudFSExample extends Component {
       })
   }
 
-  static _getPhotosFromCameraRoll(count, after) {
+  static _getPhoto() {
     const fetchParams = {
-      first: count,
+      first: 1,
       groupTypes: "SavedPhotos",
       assetType: "Photos"
     };
-
-    if (after) {
-      fetchParams.after = after;
-    }
 
     if (Platform.OS === "android") {
       delete fetchParams.groupTypes;
@@ -114,7 +110,7 @@ class Container extends Component {
     return <View style={styles.container}>
       <View style={{flex: 1}}>
         <Text style={styles.heading}>{this.props.heading}</Text>
-        <TextInput style={styles.url} value={this.props.sourcePath}/>
+        <TextInput underlineColorAndroid="transparent" style={styles.url} value={this.props.sourcePath}/>
         <View style={{alignItems: 'center'}}>
           <View style={{flexDirection: 'row', justifyContent: 'center'}}>
             <TouchableOpacity onPress={() => this._saveFile(this.props.sourcePath, this.props.targetPath)}><Text style={styles.button}>save to cloud</Text></TouchableOpacity>
@@ -140,6 +136,7 @@ const styles = StyleSheet.create({
     textAlign: 'left'
   },
   url: {
+    paddingVertical: 0,
     height: 20,
     borderColor: 'gray',
     borderWidth: 1,
