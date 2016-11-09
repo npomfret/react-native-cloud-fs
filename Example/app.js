@@ -9,8 +9,6 @@ export default class RNCloudFSExample extends Component {
   constructor(props) {
     super(props);
 
-    this._saveFile = this._saveFile.bind(this);
-
     this.state = {
       tmpFilePath: "",
       filename: "",
@@ -60,6 +58,48 @@ export default class RNCloudFSExample extends Component {
     return CameraRoll.getPhotos(fetchParams);
   }
 
+  render() {
+    return (
+      <View style={{flex: 1, alignItems: 'center', padding: 8}}>
+        <Text style={[styles.heading, {marginVertical: 16}]}>Copy URL to cloud</Text>
+
+        <Container
+          sourcePath={this.state.tmpFilePath}
+          targetPath={"absolute-path-demo/" + this.state.filename}
+          heading="absolute path"/>
+
+        <Container
+          sourcePath={"file:/" + this.state.tmpFilePath}
+          targetPath={"file-url-demo/" + this.state.filename}
+          heading="file url"/>
+
+        <Container
+          sourcePath={"https://raw.githubusercontent.com/npomfret/react-native-cloud-fs/master/README.md"}
+          targetPath={"web-url-demo/README.md"}
+          heading="url"/>
+
+        <Container
+          sourcePath={this.state.imagePath}
+          targetPath={"image-demo/" + this.state.imageFilename}
+          heading="internal url"/>
+      </View>
+    );
+  }
+}
+
+class Container extends Component {
+  constructor(props) {
+    super(props);
+
+    this._saveFile = this._saveFile.bind(this);
+  }
+
+  static propTypes = {
+    sourcePath: React.PropTypes.string.isRequired,
+    targetPath: React.PropTypes.string.isRequired,
+    heading: React.PropTypes.string.isRequired,
+  };
+
   _saveFile(sourcePath, targetPath) {
     return RNCloudFs.copyToCloud(sourcePath, targetPath, null)
       .then((res) => {
@@ -71,54 +111,13 @@ export default class RNCloudFSExample extends Component {
   }
 
   render() {
-    return (
-      <View style={{flex: 1, alignItems: 'center', padding: 8}}>
-        <Text style={[styles.heading, {marginVertical: 16}]}>Copy URL to cloud</Text>
-
-        <Container
-          saveFile={this._saveFile}
-          sourcePath={this.state.tmpFilePath}
-          targetPath={"absolute-path-demo/" + this.state.filename}
-          heading="absolute path"/>
-
-        <Container
-          saveFile={this._saveFile}
-          sourcePath={"file:/" + this.state.tmpFilePath}
-          targetPath={"file-url-demo/" + this.state.filename}
-          heading="file url"/>
-
-        <Container
-          saveFile={this._saveFile}
-          sourcePath={"https://raw.githubusercontent.com/npomfret/react-native-cloud-fs/master/README.md"}
-          targetPath={"web-url-demo/README.md"}
-          heading="url"/>
-
-        <Container
-          saveFile={this._saveFile}
-          sourcePath={this.state.imagePath}
-          targetPath={"image-demo/" + this.state.imageFilename}
-          heading="internal url"/>
-      </View>
-    );
-  }
-}
-
-class Container extends Component {
-  static propTypes = {
-    sourcePath: React.PropTypes.string.isRequired,
-    targetPath: React.PropTypes.string.isRequired,
-    heading: React.PropTypes.string.isRequired,
-    saveFile: React.PropTypes.func.isRequired,
-  };
-
-  render() {
     return <View style={styles.container}>
       <View style={{flex: 1}}>
         <Text style={styles.heading}>{this.props.heading}</Text>
         <TextInput style={styles.url} value={this.props.sourcePath}/>
         <View style={{alignItems: 'center'}}>
           <View style={{flexDirection: 'row', justifyContent: 'center'}}>
-            <TouchableOpacity onPress={() => this.props.saveFile(this.props.sourcePath, this.props.targetPath)}><Text style={styles.button}>save to cloud</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => this._saveFile(this.props.sourcePath, this.props.targetPath)}><Text style={styles.button}>save to cloud</Text></TouchableOpacity>
           </View>
           <Text style={[styles.heading, {fontStyle: 'italic'}]}>({this.props.targetPath})</Text>
         </View>
