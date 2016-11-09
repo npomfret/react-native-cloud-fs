@@ -11,6 +11,7 @@
  * delete file (or directory)
  * list files
  * get metadata for file (isDirectory, size, content-type etc)
+ * check what happens (and fix) if a destination path contains non-filename safe characters ('#', '<', '$', '+', '%', '>', '!', '`', '&', '*', '‘', '|', '{', '?', '“', '=', '}', '/', ':', '\\', '@') [source](http://www.mtu.edu/umc/services/digital/writing/characters-avoid/).  _iOS only_
 
 ## ExampleApp
 
