@@ -4,6 +4,7 @@
 #import "RCTBridgeModule.h"
 #import "RCTEventDispatcher.h"
 #import "RCTUtils.h"
+#import <AssetsLibrary/AssetsLibrary.h>
 
 @implementation RNCloudFs
 
@@ -22,18 +23,42 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)destinationPath
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSFileManager* fileManager = [NSFileManager defaultManager];
 
-        NSString *tempFile;
+        if([sourceUri hasPrefix:@"assets-library"]){
+            ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
 
-        if ([fileManager fileExistsAtPath:sourceUri isDirectory:nil]) {
+            [library assetForURL:[NSURL URLWithString:sourceUri] resultBlock:^(ALAsset *asset) {
+
+                ALAssetRepresentation *rep = [asset defaultRepresentation];
+
+                Byte *buffer = (Byte*)malloc(rep.size);
+                NSUInteger buffered = [rep getBytes:buffer fromOffset:0.0 length:rep.size error:nil];
+                NSData *data = [NSData dataWithBytesNoCopy:buffer length:buffered freeWhenDone:YES];
+                if (data) {
+                    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+                    NSString *documentsDirectory = [paths objectAtIndex:0];
+
+                    NSString *filename = [sourceUri lastPathComponent];
+                    NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+                    [data writeToFile:tempFile atomically:YES];
+                    [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
+                } else {
+                    NSLog(@"source file does not exist %@", sourceUri);
+                    return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
+                }
+            } failureBlock:^(NSError *error) {
+                NSLog(@"source file does not exist %@", sourceUri);
+                return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
+            }];
+        } else if ([fileManager fileExistsAtPath:sourceUri isDirectory:nil]) {
             NSURL *sourceURL = [NSURL fileURLWithPath:sourceUri];
 
             // todo: figure out how to *copy* to icloud drive
             // ...setUbiquitous will move the file instead of copying it, so as a work around lets copy it to a tmp file first
             NSString *filename = [sourceUri lastPathComponent];
-            tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+            NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
             NSError *error;
             [fileManager copyItemAtPath:sourceURL toPath:tempFile error:&error];
-            NSLog(@"Moving file %@ to %@", tempFile, destinationPath);
+            [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
 
         } else if ([sourceUri hasPrefix:@"file:/"]) {
             NSError *error;
@@ -46,10 +71,11 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)destinationPath
                 // todo: figure out how to *copy* to icloud drive
                 // ...setUbiquitous will move the file instead of copying it, so as a work around lets copy it to a tmp file first
                 NSString *filename = [sourceUri lastPathComponent];
-                tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+                NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
                 NSError *error;
                 [fileManager copyItemAtPath:sourceURL toPath:tempFile error:&error];
                 NSLog(@"Moving file %@ to %@", tempFile, destinationPath);
+                [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
             } else {
                 NSLog(@"source file does not exist %@", sourceUri);
                 return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
@@ -62,13 +88,24 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)destinationPath
                 NSString *documentsDirectory = [paths objectAtIndex:0];
 
                 NSString *filename = [sourceUri lastPathComponent];
-                tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+                NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
                 [urlData writeToFile:tempFile atomically:YES];
+                [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
             } else {
                 NSLog(@"source file does not exist %@", sourceUri);
                 return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
             }
         }
+    });
+}
+
+- (void) moveToICloud:(NSString *)tempFile :(NSString *)destinationPath
+                      resolver:(RCTPromiseResolveBlock)resolve
+                      rejecter:(RCTPromiseRejectBlock)reject {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSLog(@"Moving file %@ to %@", tempFile, destinationPath);
+
+        NSFileManager* fileManager = [NSFileManager defaultManager];
 
         [self rootDirectoryForICloud:^(NSURL *ubiquityURL) {
             if (ubiquityURL) {
@@ -90,7 +127,7 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)destinationPath
                 }
             } else {
                 NSLog(@"Could not retrieve a ubiquityURL");
-                return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: could not copy to iCloud drive '%@'", sourceUri.absolutePath], nil);
+                return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: could not copy to iCloud drive '%@'", tempFile.absolutePath], nil);
             }
         }];
     });

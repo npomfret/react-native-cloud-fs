@@ -116,7 +116,7 @@ class Container extends Component {
         <TextInput style={styles.url} value={this.props.sourcePath}/>
         <View style={{alignItems: 'center'}}>
           <View style={{flexDirection: 'row', justifyContent: 'center'}}>
-            <TouchableOpacity onPress={() => this.props.saveFile(this.props.sourcePath)}><Text style={styles.button}>save to cloud</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => this.props.saveFile(this.props.sourcePath, this.props.targetPath)}><Text style={styles.button}>save to cloud</Text></TouchableOpacity>
           </View>
           <Text style={[styles.heading, {fontStyle: 'italic'}]}>({this.props.targetPath})</Text>
         </View>
