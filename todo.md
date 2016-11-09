@@ -2,6 +2,7 @@
 
 ## API
 
+ * fix android implementation so it disconnects and reconnects
  * add option to overwrite existing file
  * write arbitrary text to a file
  * move file
