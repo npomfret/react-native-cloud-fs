@@ -7,7 +7,11 @@ Supported APIs: iCloud Drive (iOS), Google Drive (Android)
 
 ## Getting started
 
-`$ npm install react-native-cloud-fs --save`
+This package is not released yet and is a work in progress.  Add this to your _package.json_
+
+`"react-native-cloud-fs": "git@github.com:npomfret/react-native-cloud-fs.git"`
+
+And then run:
 
 `$ react-native link react-native-cloud-fs`
 
