@@ -26,8 +26,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.ArrayList;
-import java.util.List;
 
 public class RNCloudFsModule extends ReactContextBaseJavaModule implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
     public static final String TAG = "RNCloudFs";
@@ -61,7 +59,6 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
 
         CopyToGoogleDriveTask copyToGoogleDriveTask = new CopyToGoogleDriveTask(
                 googleApiClient,
-                Drive.DriveApi.getRootFolder(googleApiClient),
                 folder,
                 mimeType,
                 promise

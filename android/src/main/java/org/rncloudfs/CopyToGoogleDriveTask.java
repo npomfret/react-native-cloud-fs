@@ -1,34 +1,35 @@
 package org.rncloudfs;
 
 import android.os.AsyncTask;
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.facebook.react.bridge.Promise;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.drive.Drive;
 import com.google.android.gms.drive.DriveApi;
 import com.google.android.gms.drive.DriveContents;
 import com.google.android.gms.drive.DriveFolder;
+import com.google.android.gms.drive.DriveId;
+import com.google.android.gms.drive.Metadata;
+import com.google.android.gms.drive.MetadataBuffer;
 import com.google.android.gms.drive.MetadataChangeSet;
 
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.rncloudfs.RNCloudFsModule.TAG;
+
 public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, Void, Void> {
-    private final DriveFolder rootFolder;
-    private String targetFolder;
+    private String outputPath;
     @Nullable
     private final String mimeType;
     private final Promise promise;
     private GoogleApiClient googleApiClient;
 
-    public CopyToGoogleDriveTask(final GoogleApiClient googleApiClient, DriveFolder rootFolder, String targetFolder, @Nullable String mimeType, Promise promise) {
-        this.rootFolder = rootFolder;
-        this.targetFolder = targetFolder;
+    public CopyToGoogleDriveTask(final GoogleApiClient googleApiClient, String outputPath, @Nullable String mimeType, Promise promise) {
+        this.outputPath = outputPath;
         this.mimeType = mimeType;
         this.promise = promise;
         this.googleApiClient = googleApiClient;
@@ -37,99 +38,102 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
     @Override
     protected Void doInBackground(RNCloudFsModule.SourceUri... params) {
         List<String> names = new ArrayList<>();
-        for (String name : targetFolder.split("/")) {
+        for (String name : outputPath.split("/")) {
             if(name.trim().length() > 0) {
                 names.add(name);
             }
         }
 
-        for (RNCloudFsModule.SourceUri sourceUri : params) {
-            createFileInFolders(rootFolder, names, sourceUri, mimeType, promise);
+        try {
+            DriveFolder rootFolder = Drive.DriveApi.getRootFolder(googleApiClient);
+            createFileInFolders(rootFolder, names, params[0]);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to write " + outputPath, e);
+            promise.reject("Failed to read input", e);
+        }
+
+        return null;
+    }
+
+    private void createFileInFolders(DriveFolder parentFolder, final List<String> pathParts, final RNCloudFsModule.SourceUri sourceUri) {
+        if (pathParts.size() > 1) {
+            String name = pathParts.remove(0);
+
+            DriveFolder folder = folder(parentFolder, name);
+
+            if(folder == null) {
+                MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
+                        .setTitle(name)
+                        .build();
+
+                DriveFolder.DriveFolderResult result = parentFolder.createFolder(googleApiClient, changeSet).await();
+
+                Log.i(TAG, "Created folder '" + name + "'");
+
+                createFileInFolders(result.getDriveFolder(), pathParts, sourceUri);
+            } else {
+                Log.d(TAG, "Folder already exists '" + name + "'");
+
+                createFileInFolders(folder, pathParts, sourceUri);
+            }
+
+        } else {
+            createFileInFolder(parentFolder, sourceUri, pathParts.get(0));
+        }
+    }
+
+    @Nullable
+    private DriveFolder folder(DriveFolder parentFolder, String name) {
+        Metadata metadata = find(parentFolder, name);
+        return metadata != null && metadata.isFolder() ? metadata.getDriveId().asDriveFolder() : null;
+    }
+
+    @Nullable
+    private Metadata find(DriveFolder parentFolder, String name) {
+        DriveApi.MetadataBufferResult childrenBuffer = parentFolder.listChildren(googleApiClient).await();
+        MetadataBuffer metadataBuffer = childrenBuffer.getMetadataBuffer();
+        for (Metadata metadata : metadataBuffer) {
+            if(metadata.getTitle().equals(name)) {
+                return metadata;
+            }
         }
         return null;
     }
 
-    private void createFileInFolders(DriveFolder parentFolder, final List<String> pathParts, final RNCloudFsModule.SourceUri sourceUri, @Nullable final String mimeType, final Promise promise) {
-        if (pathParts.size() > 1) {
-            final String name = pathParts.remove(0);
-
-            MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
-                    .setTitle(name)
-                    .build();
-
-            parentFolder.createFolder(googleApiClient, changeSet)
-                    .setResultCallback(new ResultCallback<DriveFolder.DriveFolderResult>() {
-                        @Override
-                        public void onResult(@NonNull DriveFolder.DriveFolderResult result) {
-                            Log.d(RNCloudFsModule.TAG, "Created folder '" + name + "'");
-
-                            createFileInFolders(result.getDriveFolder(), pathParts, sourceUri, mimeType, promise);
-                        }
-                    });
-        } else {
-            createFileInFolder(parentFolder, sourceUri, pathParts.get(0), mimeType, promise);
-        }
-    }
-
-    private void createFileInFolder(final DriveFolder driveFolder, final RNCloudFsModule.SourceUri sourceUri, final String filename, @Nullable final String mimeType, final Promise promise) {
-        Drive.DriveApi.newDriveContents(googleApiClient)
-                .setResultCallback(new ResultCallback<DriveApi.DriveContentsResult>() {
-                    @Override
-                    public void onResult(@NonNull DriveApi.DriveContentsResult result) {
-                        if (!result.getStatus().isSuccess()) {
-                            Log.e(RNCloudFsModule.TAG, "Failed to create new content");
-                            promise.reject("Failed to create new content", "Failed to create new content");
-                            return;
-                        }
-
-                        DowloadTask dowloadTask = new DowloadTask(result.getDriveContents(), filename, driveFolder);
-                        dowloadTask.execute(sourceUri);
-                    }
-                });
-    }
-
-    private class DowloadTask extends AsyncTask<RNCloudFsModule.SourceUri, Void, Void> {
-
-        private DriveContents driveContents;
-        private String filename;
-        private DriveFolder driveFolder;
-
-        private DowloadTask(DriveContents driveContents, String filename, DriveFolder driveFolder) {
-            this.driveContents = driveContents;
-            this.filename = filename;
-            this.driveFolder = driveFolder;
+    private void createFileInFolder(final DriveFolder driveFolder, final RNCloudFsModule.SourceUri sourceUri, final String filename) {
+        Metadata metadata = find(driveFolder, filename);
+        if(metadata != null) {
+            throw new IllegalStateException("Item already exists at " + outputPath);
         }
 
-        @Override
-        protected Void doInBackground(RNCloudFsModule.SourceUri... params) {
-            for (RNCloudFsModule.SourceUri sourceUri : params) {
-                try {
-                    OutputStream outputStream = driveContents.getOutputStream();
-                    sourceUri.copyToOutputStream(outputStream);
-                    outputStream.close();
+        DriveApi.DriveContentsResult result = Drive.DriveApi.newDriveContents(googleApiClient).await();
 
-                    MetadataChangeSet.Builder builder = new MetadataChangeSet.Builder()
-                            .setTitle(filename);
+        if (!result.getStatus().isSuccess()) {
+            Log.e(TAG, "Failed to create new content");
+            promise.reject("Failed to create new content", "Failed to create new content");
+            return;
+        }
 
-                    if (mimeType != null) {
-                        builder.setMimeType(mimeType);
-                    }
+        try {
+            DriveContents driveContents = result.getDriveContents();
+            OutputStream outputStream = driveContents.getOutputStream();
+            sourceUri.copyToOutputStream(outputStream);
+            outputStream.close();
 
-                    driveFolder.createFile(googleApiClient, builder.build(), driveContents)
-                            .setResultCallback(new ResultCallback<DriveFolder.DriveFileResult>() {
-                                @Override
-                                public void onResult(@NonNull DriveFolder.DriveFileResult driveFileResult) {
-                                    System.out.println("Created a file with content: " + driveFileResult.getDriveFile().getDriveId());
-                                    promise.resolve(driveFileResult.getDriveFile().toString());
-                                }
-                            });
-                } catch (Exception e) {
-                    Log.e(RNCloudFsModule.TAG, "Failed to read " + sourceUri, e);
-                    promise.reject("Failed to read input", e);
-                }
+            MetadataChangeSet.Builder builder = new MetadataChangeSet.Builder()
+                    .setTitle(filename);
+
+            if (mimeType != null) {
+                builder.setMimeType(mimeType);
             }
 
-            return null;
+            DriveFolder.DriveFileResult driveFileResult = driveFolder.createFile(googleApiClient, builder.build(), driveContents).await();
+            Log.i(TAG, "Created a file '" + filename + "' with content: " + driveFileResult.getDriveFile().getDriveId());
+            promise.resolve(driveFileResult.getDriveFile().toString());
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to read " + sourceUri, e);
+            promise.reject("Failed to read input", e);
         }
     }
+
 }
