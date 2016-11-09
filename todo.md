@@ -1,16 +1,25 @@
 # todo
 
+ * release initial version to NPM
+ 
 ## API
 
+ * `copyToCloud`
+   * add option to overwrite existing file 
+   * add optional http headers
  * fix android implementation so it disconnects and reconnects
- * add option to overwrite existing file
- * write arbitrary text to a file
- * move file
- * create directory
- * copy file from cloud drive to local directory
- * delete file (or directory)
- * list files
- * get metadata for file (isDirectory, size, content-type etc)
+ * `createCloudFile`
+   * write arbitrary text to a file
+ * `moveCloudFile`
+ * `createCouldDirectory`
+ * `copyFromCloud`
+   * single file
+   * entire directory
+ * `deleteFromCloud`
+   * single file
+   * entire directory
+ * `listCloudFiles`
+   * get metadata for file (isDirectory, size, content-type etc)
  * check what happens (and fix) if a destination path contains non-filename safe characters ('#', '<', '$', '+', '%', '>', '!', '`', '&', '*', '‘', '|', '{', '?', '“', '=', '}', '/', ':', '\\', '@') [source](http://www.mtu.edu/umc/services/digital/writing/characters-avoid/).  _iOS only_
 
 ## ExampleApp
