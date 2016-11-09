@@ -1,7 +1,7 @@
 
 # react-native-cloud-fs
 
-A react-native library for reading and writing files t0 _iCloud Drive_ (iOS) and _Google Drive_ (Android).
+A react-native library for reading and writing files to _iCloud Drive_ (iOS) and _Google Drive_ (Android).
 
 ## Getting started
 
