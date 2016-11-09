@@ -30,7 +30,6 @@ export default class RNCloudFSExample extends Component {
 
     RNCloudFSExample._getPhoto()
       .then((res) => {
-        console.log("res", res);
         if (res.edges.length > 0) {
           const imageFilename = res.edges[0].node.image.filename;//iOS only
 

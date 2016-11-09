@@ -79,7 +79,7 @@ RNCloudFs.copyToCloud(sourceUri, destinationPath, mimeType)
   })
 ```
 
-_sourceUri_: any uri or **absolute** file path, e.g:
+_sourceUri_: object with any uri or an **absolute** path, e.g:
  * `{path: '/foo/bar/file.txt'}`
  * `{uri: 'file://foo/bar/file.txt'}`
  * `{uri: 'http://www.files.com/foo/bar/file.txt'}`

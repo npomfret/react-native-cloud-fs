@@ -14,6 +14,7 @@ import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.ReadableMap;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -50,7 +51,12 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @ReactMethod
-    public void copyToCloud(String sourceUri, String destinationPath, @Nullable String mimeType, Promise promise) {
+    public void copyToCloud(ReadableMap source, String destinationPath, @Nullable String mimeType, Promise promise) {
+        String sourceUri = source.getString("uri");
+        if(sourceUri == null) {
+            sourceUri = source.getString("path");
+        }
+
         if(mimeType == null) {
             mimeType = guessMimeType(sourceUri);
         }

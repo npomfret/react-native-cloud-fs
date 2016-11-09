@@ -14,11 +14,16 @@
 }
 RCT_EXPORT_MODULE()
 
-RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)destinationPath :(NSString *)mimeType
+RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)source :(NSString *)destinationPath :(NSString *)mimeType
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
 
     // mimeType is ignored for iOS
+
+    NSString *sourceUri = [source objectForKey:@"uri"];
+    if(!sourceUri) {
+        sourceUri = [source objectForKey:@"path"];
+    }
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSFileManager* fileManager = [NSFileManager defaultManager];
