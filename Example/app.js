@@ -39,7 +39,7 @@ export default class RNCloudFSExample extends Component {
             imageFilename: imageFilename ? imageFilename : "image.jpeg"
           });
         }
-      })
+      });
   }
 
   static _getPhoto() {
@@ -99,7 +99,8 @@ class Container extends Component {
   };
 
   _saveFile(sourcePath, targetPath) {
-    return RNCloudFs.copyToCloud(sourcePath, targetPath, null)
+    const mimeType = null;//for android only - and if null the java code will take a guess
+    return RNCloudFs.copyToCloud(sourcePath, targetPath, mimeType)
       .then((res) => {
         console.log("it worked", res);
       })
