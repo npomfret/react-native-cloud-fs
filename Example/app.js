@@ -32,9 +32,11 @@ export default class RNCloudFSExample extends Component {
       .then((res) => {
         console.log("res", res);
         if (res.edges.length > 0) {
+          const imageFilename = res.edges[0].node.image.filename;//iOS only
+
           this.setState({
             imagePath: res.edges[0].node.image.uri,
-            imageFilename: res.edges[0].node.image.filename
+            imageFilename: imageFilename ? imageFilename : "image.jpeg"
           });
         }
       })
