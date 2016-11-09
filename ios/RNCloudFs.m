@@ -49,18 +49,7 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)destinationPath
                 NSLog(@"source file does not exist %@", sourceUri);
                 return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
             }];
-        } else if ([fileManager fileExistsAtPath:sourceUri isDirectory:nil]) {
-            NSURL *sourceURL = [NSURL fileURLWithPath:sourceUri];
-
-            // todo: figure out how to *copy* to icloud drive
-            // ...setUbiquitous will move the file instead of copying it, so as a work around lets copy it to a tmp file first
-            NSString *filename = [sourceUri lastPathComponent];
-            NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
-            NSError *error;
-            [fileManager copyItemAtPath:sourceURL toPath:tempFile error:&error];
-            [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
-
-        } else if ([sourceUri hasPrefix:@"file:/"]) {
+        } else if ([sourceUri hasPrefix:@"file:/"] || [sourceUri hasPrefix:@"/"]) {
             NSError *error;
             NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^file:/+" options:NSRegularExpressionCaseInsensitive error:&error];
             NSString *modifiedSourceUri = [regex stringByReplacingMatchesInString:sourceUri options:0 range:NSMakeRange(0, [sourceUri length]) withTemplate:@"/"];
@@ -74,7 +63,6 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)destinationPath
                 NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
                 NSError *error;
                 [fileManager copyItemAtPath:sourceURL toPath:tempFile error:&error];
-                NSLog(@"Moving file %@ to %@", tempFile, destinationPath);
                 [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
             } else {
                 NSLog(@"source file does not exist %@", sourceUri);
