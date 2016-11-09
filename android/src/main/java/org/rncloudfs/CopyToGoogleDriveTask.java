@@ -21,13 +21,13 @@ import java.util.List;
 import static org.rncloudfs.RNCloudFsModule.TAG;
 
 public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, Void, Void> {
-    private String outputPath;
+    private final String outputPath;
     @Nullable
     private final String mimeType;
     private final Promise promise;
-    private GoogleApiClient googleApiClient;
+    private final GoogleApiClient googleApiClient;
 
-    public CopyToGoogleDriveTask(final GoogleApiClient googleApiClient, String outputPath, @Nullable String mimeType, Promise promise) {
+    public CopyToGoogleDriveTask(GoogleApiClient googleApiClient, String outputPath, @Nullable String mimeType, Promise promise) {
         this.outputPath = outputPath;
         this.mimeType = mimeType;
         this.promise = promise;
