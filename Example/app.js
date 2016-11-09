@@ -26,7 +26,7 @@ export default class RNCloudFSExample extends Component {
       .then(() => {
         this.setState({
           tmpFilePath: tmpFilePath,
-          filename: "my-file." + new Date().toISOString() + ".txt"
+          filename: "my-file.txt"
         })
       });
 
@@ -72,7 +72,9 @@ export default class RNCloudFSExample extends Component {
 
   render() {
     return (
-      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: 8}}>
+      <View style={{flex: 1, alignItems: 'center', padding: 8}}>
+        <Text style={[styles.heading, {marginVertical: 16}]}>Copy URL to cloud</Text>
+
         <Container
           saveFile={this._saveFile}
           sourcePath={this.state.tmpFilePath}
