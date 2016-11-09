@@ -33,17 +33,15 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)destinationPath
                 Byte *buffer = (Byte*)malloc(rep.size);
                 NSUInteger buffered = [rep getBytes:buffer fromOffset:0.0 length:rep.size error:nil];
                 NSData *data = [NSData dataWithBytesNoCopy:buffer length:buffered freeWhenDone:YES];
-                if (data) {
-                    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-                    NSString *documentsDirectory = [paths objectAtIndex:0];
 
+                if (data) {
                     NSString *filename = [sourceUri lastPathComponent];
                     NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
                     [data writeToFile:tempFile atomically:YES];
                     [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
                 } else {
                     NSLog(@"source file does not exist %@", sourceUri);
-                    return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
+                    return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: failed to copy asset '%@'", sourceUri], nil);
                 }
             } failureBlock:^(NSError *error) {
                 NSLog(@"source file does not exist %@", sourceUri);
@@ -71,17 +69,15 @@ RCT_EXPORT_METHOD(copyToCloud:(NSString *)sourceUri :(NSString *)destinationPath
         } else {
             NSURL *url = [NSURL URLWithString:sourceUri];
             NSData *urlData = [NSData dataWithContentsOfURL:url];
-            if (urlData) {
-                NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-                NSString *documentsDirectory = [paths objectAtIndex:0];
 
+            if (urlData) {
                 NSString *filename = [sourceUri lastPathComponent];
                 NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
                 [urlData writeToFile:tempFile atomically:YES];
                 [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
             } else {
                 NSLog(@"source file does not exist %@", sourceUri);
-                return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
+                return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: cannot download '%@'", sourceUri], nil);
             }
         }
     });
