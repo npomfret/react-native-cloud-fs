@@ -1,6 +1,8 @@
 package org.rncloudfs;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.ApplicationInfo;
 import android.net.Uri;
@@ -10,6 +12,8 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
 
+import com.facebook.react.bridge.ActivityEventListener;
+import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
@@ -29,7 +33,9 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-public class RNCloudFsModule extends ReactContextBaseJavaModule implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener {
+import static android.app.Activity.RESULT_OK;
+
+public class RNCloudFsModule extends ReactContextBaseJavaModule implements GoogleApiClient.OnConnectionFailedListener, LifecycleEventListener, ActivityEventListener {
     public static final String TAG = "RNCloudFs";
     private static final int REQUEST_CODE_RESOLUTION = 3;
 
@@ -40,50 +46,83 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
         super(reactContext);
         this.reactContext = reactContext;
 
-        googleApiClient = new GoogleApiClient.Builder(reactContext)
-                .addApi(Drive.API)
-                .addScope(Drive.SCOPE_FILE)
-                .addScope(Drive.SCOPE_APPFOLDER)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .build();
-
-        googleApiClient.connect();
+        reactContext.addLifecycleEventListener(this);
+        reactContext.addActivityEventListener(this);
     }
 
     /**
      * Copy the source into the google drive database using
-     * @param source contains a string keyed by 'uri' (or 'path') along with an optional map ('http-headers') containing http headers
+     *
+     * @param source          contains a string keyed by 'uri' (or 'path') along with an optional map ('http-headers') containing http headers
      * @param destinationPath a relative path under which the file will be stored
-     * @param mimeType an optional mime-type for the database, if null a guess will be made
+     * @param mimeType        an optional mime-type for the database, if null a guess will be made
      */
     @ReactMethod
-    public void copyToCloud(ReadableMap source, String destinationPath, @Nullable String mimeType, Promise promise) {
-        String sourceUri = source.getString("uri");
-        if (sourceUri == null) {
-            sourceUri = source.getString("path");
+    public void copyToCloud(ReadableMap source, String destinationPath, @Nullable String mimeType, final Promise promise) {
+        try {
+            String uriOrPath = source.hasKey("uri") ? source.getString("uri") : null;
+
+            if (uriOrPath == null) {
+                uriOrPath = source.hasKey("path") ? source.getString("path") : null;
+            }
+
+            if (uriOrPath == null) {
+                promise.reject("no path", "no source uri or path was specified");
+                return;
+            }
+
+            final SourceUri sourceUri = new SourceUri(uriOrPath, source.hasKey("http-headers") ? source.getMap("http-headers") : null);
+
+            final String actualMimeType;
+            if (mimeType == null) {
+                actualMimeType = guessMimeType(uriOrPath);
+            } else {
+                actualMimeType = null;
+            }
+
+            final String folder = getApplicationName(reactContext) + "/" + destinationPath;
+
+            GoogleApiClient googleApiClient = onClientConnected();
+            googleApiClient.blockingConnect();
+
+            // needs to be an async task because it may do some network access
+            CopyToGoogleDriveTask copyToGoogleDriveTask = new CopyToGoogleDriveTask(
+                    googleApiClient,
+                    folder,
+                    actualMimeType,
+                    promise
+            );
+
+            copyToGoogleDriveTask.execute(sourceUri);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to copy", e);
+            promise.reject("Failed to copy", e);
         }
+    }
 
-        if(sourceUri == null) {
-            promise.reject("no path", "no source uri or path was specified");
-            return;
+    private GoogleApiClient onClientConnected() {
+        if (googleApiClient == null) {
+            googleApiClient = new GoogleApiClient.Builder(reactContext)
+                    .addApi(Drive.API)
+                    .addScope(Drive.SCOPE_FILE)
+                    .addScope(Drive.SCOPE_APPFOLDER)
+                    .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
+                        @Override
+                        public void onConnected(@Nullable Bundle bundle) {
+                            Log.i(TAG, "Google client API connected");
+                        }
+
+                        @Override
+                        public void onConnectionSuspended(int i) {
+                            //what to do here??
+                            Log.w(TAG, "Google client API suspended: " + i);
+                        }
+                    })
+                    .addOnConnectionFailedListener(this)
+                    .build();
+
         }
-
-        if (mimeType == null) {
-            mimeType = guessMimeType(sourceUri);
-        }
-
-        String folder = getApplicationName(reactContext) + "/" + destinationPath;
-
-        // needs to be an async task because it may do some network access
-        CopyToGoogleDriveTask copyToGoogleDriveTask = new CopyToGoogleDriveTask(
-                googleApiClient,
-                folder,
-                mimeType,
-                promise
-        );
-
-        copyToGoogleDriveTask.execute(new SourceUri(sourceUri, source.getMap("http-headers")));
+        return googleApiClient;
     }
 
     private static String getApplicationName(Context context) {
@@ -102,10 +141,55 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
         }
     }
 
+    @Override
+    public void onHostResume() {
+        if (this.googleApiClient != null)
+            googleApiClient.connect();
+    }
+
+    @Override
+    public void onHostPause() {
+        if (this.googleApiClient != null)
+            this.googleApiClient.disconnect();
+    }
+
+    @Override
+    public void onHostDestroy() {
+        if (this.googleApiClient != null)
+            this.googleApiClient.disconnect();
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CODE_RESOLUTION && resultCode == RESULT_OK)
+            this.googleApiClient.connect();
+    }
+
+    // copied from BaseActivityEventListener
+    public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
+        this.onActivityResult(requestCode, resultCode, data);
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult result) {
+        Log.w(TAG, "Google client API connection failed: " + result.toString());
+
+        if (!result.hasResolution()) {
+            GoogleApiAvailability.getInstance().getErrorDialog(this.getCurrentActivity(), result.getErrorCode(), 0).show();
+            return;
+        }
+
+        try {
+            result.startResolutionForResult(this.getCurrentActivity(), REQUEST_CODE_RESOLUTION);
+        } catch (IntentSender.SendIntentException e) {
+            Log.e(TAG, "Exception while starting resolution activity", e);
+        }
+    }
+
     public class SourceUri {
         public final String uri;
         @Nullable
-        private ReadableMap httpHeaders;
+        private final ReadableMap httpHeaders;
 
         private SourceUri(String uri, @Nullable ReadableMap httpHeaders) {
             this.uri = uri;
@@ -155,33 +239,6 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
             } finally {
                 input.close();
             }
-        }
-
-    }
-
-    @Override
-    public void onConnected(@Nullable Bundle bundle) {
-        Log.i(TAG, "API client connected.");
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-        Log.i(TAG, "GoogleApiClient connection suspended: " + i);
-    }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult result) {
-        Log.i(TAG, "GoogleApiClient connection failed: " + result.toString());
-
-        if (!result.hasResolution()) {
-            GoogleApiAvailability.getInstance().getErrorDialog(this.getCurrentActivity(), result.getErrorCode(), 0).show();
-            return;
-        }
-
-        try {
-            result.startResolutionForResult(this.getCurrentActivity(), REQUEST_CODE_RESOLUTION);
-        } catch (IntentSender.SendIntentException e) {
-            Log.e(TAG, "Exception while starting resolution activity", e);
         }
     }
 
