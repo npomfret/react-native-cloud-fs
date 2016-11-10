@@ -20,7 +20,10 @@
    * single file
    * entire directory
  * `listCloudFiles`
-   * get metadata for file (isDirectory, size, content-type etc)
+   * get metadata for file (isDirectory, size, content-type, downloaded etc)
+ * `download`
+   * single file
+   * entire directory
  * check what happens (and fix) if a destination path contains non-filename safe characters ('#', '<', '$', '+', '%', '>', '!', '`', '&', '*', '‘', '|', '{', '?', '“', '=', '}', '/', ':', '\\', '@') [source](http://www.mtu.edu/umc/services/digital/writing/characters-avoid/).  _iOS only_
  * sensible & descriptive error messages for all error scenarios
  
