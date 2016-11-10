@@ -8,7 +8,7 @@
    * add option to overwrite existing file 
    * add optional http headers
    * ...think about return type, if any
- * fix android implementation so it disconnects and reconnects
+ * fix android implementation so it disconnects and reconnects (see 'Listening to LifeCycle events' in http://facebook.github.io/react-native/docs/native-modules-android.html)
  * `createCloudFile`
    * write arbitrary text to a file
  * `moveCloudFile`
