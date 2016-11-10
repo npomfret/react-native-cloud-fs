@@ -61,22 +61,22 @@ export default class RNCloudFSExample extends Component {
         <Text style={[styles.heading, {marginVertical: 16}]}>Copy URL to cloud</Text>
 
         <Container
-          sourcePath={this.state.tmpFilePath}
+          sourcePath={{path: this.state.tmpFilePath}}
           targetPath={"absolute-path-demo/" + this.state.filename}
           heading="absolute path"/>
 
         <Container
-          sourcePath={"file:/" + this.state.tmpFilePath}
+          sourcePath={{uri: "file:/" + this.state.tmpFilePath}}
           targetPath={"file-url-demo/" + this.state.filename}
           heading="file url"/>
 
         <Container
-          sourcePath={"https://raw.githubusercontent.com/npomfret/react-native-cloud-fs/master/README.md"}
+          sourcePath={{uri: "https://raw.githubusercontent.com/npomfret/react-native-cloud-fs/master/README.md"}}
           targetPath={"web-url-demo/README.md"}
           heading="url"/>
 
         <Container
-          sourcePath={this.state.imagePath}
+          sourcePath={{uri: this.state.imagePath}}
           targetPath={"image-demo/" + this.state.imageFilename}
           heading="internal url"/>
       </View>
@@ -92,7 +92,7 @@ class Container extends Component {
   }
 
   static propTypes = {
-    sourcePath: React.PropTypes.string.isRequired,
+    sourcePath: React.PropTypes.object.isRequired,
     targetPath: React.PropTypes.string.isRequired,
     heading: React.PropTypes.string.isRequired,
   };
@@ -112,7 +112,7 @@ class Container extends Component {
     return <View style={styles.container}>
       <View style={{flex: 1}}>
         <Text style={styles.heading}>{this.props.heading}</Text>
-        <TextInput underlineColorAndroid="transparent" style={styles.url} value={this.props.sourcePath}/>
+        <TextInput underlineColorAndroid="transparent" style={styles.url} value={this.props.sourcePath.uri ? this.props.sourcePath.uri : this.props.sourcePath.path}/>
         <View style={{alignItems: 'center'}}>
           <View style={{flexDirection: 'row', justifyContent: 'center'}}>
             <TouchableOpacity onPress={() => this._saveFile(this.props.sourcePath, this.props.targetPath)}><Text style={styles.button}>save to cloud</Text></TouchableOpacity>
