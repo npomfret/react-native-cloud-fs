@@ -16,7 +16,7 @@ In xCode...
 
  * Add the following to `ios/app-name/Info.plist` (replacing _app-name_ and _package-name_ as appropriate):
 
-```
+```xml
 <key>NSUbiquitousContainers</key>
 <dict>
     <key>iCloud.package-name</key>
@@ -33,7 +33,7 @@ In xCode...
 
  * Enable iCloud:
 
-![alt tag](docs/xcode.png)
+![alt tag](./xcode.png)
 
 ### Android
 
