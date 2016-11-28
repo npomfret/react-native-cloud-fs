@@ -2,7 +2,7 @@
 
 This package is not released yet and is a work in progress.  Add this to your _package.json_
 
-`"react-native-cloud-fs": "git@github.com:npomfret/react-native-cloud-fs.git"`
+`"react-native-cloud-fs": "git://github.com/npomfret/react-native-cloud-fs.git"`
 
 And then run:
 
