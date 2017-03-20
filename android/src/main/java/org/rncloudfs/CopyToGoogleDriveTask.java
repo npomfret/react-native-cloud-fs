@@ -5,17 +5,12 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.facebook.react.bridge.Promise;
-import com.facebook.react.bridge.ReadableMap;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.drive.Drive;
-import com.google.android.gms.drive.DriveApi;
-import com.google.android.gms.drive.DriveContents;
+import com.google.android.gms.common.api.Result;
 import com.google.android.gms.drive.DriveFolder;
-import com.google.android.gms.drive.Metadata;
-import com.google.android.gms.drive.MetadataBuffer;
 import com.google.android.gms.drive.MetadataChangeSet;
 
-import java.io.OutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,27 +21,27 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
     @Nullable
     private final String mimeType;
     private final Promise promise;
-    private final GoogleApiClient googleApiClient;
+    private final GoogleDriveApiClient googleApiClient;
 
     public CopyToGoogleDriveTask(GoogleApiClient googleApiClient, String outputPath, @Nullable String mimeType, Promise promise) {
         this.outputPath = outputPath;
         this.mimeType = mimeType;
         this.promise = promise;
-        this.googleApiClient = googleApiClient;
+        this.googleApiClient = new GoogleDriveApiClient(googleApiClient);
     }
 
     @Override
     protected Void doInBackground(RNCloudFsModule.SourceUri... params) {
         List<String> parthParts = new ArrayList<>();
         for (String name : outputPath.split("/")) {
-            if(name.trim().length() > 0) {
+            if (name.trim().length() > 0) {
                 parthParts.add(name);
             }
         }
 
         RNCloudFsModule.SourceUri sourceUri = params[0];
         try {
-            DriveFolder rootFolder = Drive.DriveApi.getRootFolder(googleApiClient);
+            DriveFolder rootFolder = googleApiClient.appFolder();
             createFileInFolders(rootFolder, parthParts, sourceUri);
         } catch (Exception e) {
             Log.e(TAG, "Failed to write " + outputPath, e);
@@ -60,14 +55,14 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
         if (pathParts.size() > 1) {
             String name = pathParts.remove(0);
 
-            DriveFolder folder = folder(parentFolder, name);
+            DriveFolder folder = googleApiClient.folder(parentFolder, name);
 
-            if(folder == null) {
+            if (folder == null) {
                 MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
                         .setTitle(name)
                         .build();
 
-                DriveFolder.DriveFolderResult result = parentFolder.createFolder(googleApiClient, changeSet).await();
+                DriveFolder.DriveFolderResult result = googleApiClient.createFolder(parentFolder, changeSet);
 
                 Log.i(TAG, "Created folder '" + name + "'");
 
@@ -79,62 +74,24 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
             }
 
         } else {
-            createFileInFolder(parentFolder, sourceUri, pathParts.get(0));
-        }
-    }
-
-    @Nullable
-    private DriveFolder folder(DriveFolder parentFolder, String name) {
-        Metadata metadata = find(parentFolder, name);
-        return metadata != null && metadata.isFolder() ? metadata.getDriveId().asDriveFolder() : null;
-    }
-
-    @Nullable
-    private Metadata find(DriveFolder parentFolder, String name) {
-        DriveApi.MetadataBufferResult childrenBuffer = parentFolder.listChildren(googleApiClient).await();
-        MetadataBuffer metadataBuffer = childrenBuffer.getMetadataBuffer();
-        for (Metadata metadata : metadataBuffer) {
-            if(metadata.getTitle().equals(name)) {
-                return metadata;
+            try {
+                Result result = googleApiClient.createFileInFolder(parentFolder, sourceUri, pathParts.get(0), mimeType);
+                if (!result.getStatus().isSuccess()) {
+                    Log.e(TAG, "Failed to create new content");
+                    promise.reject("Failed to create new content", "Failed to create new content");
+                } else {
+                    if (result instanceof DriveFolder.DriveFileResult) {
+                        DriveFolder.DriveFileResult driveFileResult = (DriveFolder.DriveFileResult) result;
+                        promise.resolve(driveFileResult.getDriveFile().getDriveId().toString());
+                    } else {
+                        throw new IllegalStateException("Should not get here");
+                    }
+                }
+            } catch (IOException e) {
+                Log.e(TAG, "Failed to read " + sourceUri, e);
+                promise.reject("Failed to read input", e);
             }
         }
-        return null;
     }
 
-    private void createFileInFolder(DriveFolder driveFolder, RNCloudFsModule.SourceUri sourceUri, String filename) {
-        Metadata metadata = find(driveFolder, filename);
-        if(metadata != null) {
-            Log.w(TAG, "item already at location: " + metadata);
-            throw new IllegalStateException("Item already exists at " + outputPath);
-        }
-
-        DriveApi.DriveContentsResult result = Drive.DriveApi.newDriveContents(googleApiClient).await();
-
-        if (!result.getStatus().isSuccess()) {
-            Log.e(TAG, "Failed to create new content");
-            promise.reject("Failed to create new content", "Failed to create new content");
-            return;
-        }
-
-        try {
-            DriveContents driveContents = result.getDriveContents();
-            OutputStream outputStream = driveContents.getOutputStream();
-            sourceUri.copyToOutputStream(outputStream);
-            outputStream.close();
-
-            MetadataChangeSet.Builder builder = new MetadataChangeSet.Builder()
-                    .setTitle(filename);
-
-            if (mimeType != null) {
-                builder.setMimeType(mimeType);
-            }
-
-            DriveFolder.DriveFileResult driveFileResult = driveFolder.createFile(googleApiClient, builder.build(), driveContents).await();
-            Log.i(TAG, "Created a file '" + filename + "' with content: " + driveFileResult.getDriveFile().getDriveId());
-            promise.resolve(driveFileResult.getDriveFile().getDriveId().toString());
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to read " + sourceUri, e);
-            promise.reject("Failed to read input", e);
-        }
-    }
 }

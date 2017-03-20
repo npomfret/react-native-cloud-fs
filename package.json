@@ -11,31 +11,61 @@
         "type": "directory"
       },
       "/Users/nickpomfret/Documents/github/react-native-cloud-fs.example/Example"
+    ],
+    [
+      {
+        "raw": "react-native-cloud-fs@git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
+        "scope": null,
+        "escapedName": "react-native-cloud-fs",
+        "name": "react-native-cloud-fs",
+        "rawSpec": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
+        "spec": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
+        "type": "hosted",
+        "hosted": {
+          "type": "github",
+          "ssh": "git@github.com:npomfret/react-native-cloud-fs.git",
+          "sshUrl": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
+          "httpsUrl": "git+https://github.com/npomfret/react-native-cloud-fs.git",
+          "gitUrl": "git://github.com/npomfret/react-native-cloud-fs.git",
+          "shortcut": "github:npomfret/react-native-cloud-fs",
+          "directUrl": "https://raw.githubusercontent.com/npomfret/react-native-cloud-fs/master/package.json"
+        }
+      },
+      "/Users/nickpomfret/Documents/github/react-native-cloud-fs/Example"
     ]
   ],
-  "_from": "../../react-native-cloud-fs",
+  "_from": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
   "_id": "react-native-cloud-fs@1.0.0",
   "_inCache": true,
   "_installable": true,
   "_location": "/react-native-cloud-fs",
   "_phantomChildren": {},
   "_requested": {
-    "raw": "react-native-cloud-fs@file:///Users/nickpomfret/Documents/github/react-native-cloud-fs",
+    "raw": "react-native-cloud-fs@git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
     "scope": null,
     "escapedName": "react-native-cloud-fs",
     "name": "react-native-cloud-fs",
-    "rawSpec": "file:///Users/nickpomfret/Documents/github/react-native-cloud-fs",
-    "spec": "/Users/nickpomfret/Documents/github/react-native-cloud-fs",
-    "type": "directory"
+    "rawSpec": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
+    "spec": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
+    "type": "hosted",
+    "hosted": {
+      "type": "github",
+      "ssh": "git@github.com:npomfret/react-native-cloud-fs.git",
+      "sshUrl": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
+      "httpsUrl": "git+https://github.com/npomfret/react-native-cloud-fs.git",
+      "gitUrl": "git://github.com/npomfret/react-native-cloud-fs.git",
+      "shortcut": "github:npomfret/react-native-cloud-fs",
+      "directUrl": "https://raw.githubusercontent.com/npomfret/react-native-cloud-fs/master/package.json"
+    }
   },
   "_requiredBy": [
     "/"
   ],
-  "_resolved": "file:../../react-native-cloud-fs",
-  "_shasum": "0ab00f28998afa68545fde6fe8790808bc2499be",
+  "_resolved": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git#80c8ab0e80ad5a6c4c585bcea66a25c92965fd2a",
+  "_shasum": "7491707da4ea93726a96acde84de953ab906c38a",
   "_shrinkwrap": null,
-  "_spec": "react-native-cloud-fs@file:///Users/nickpomfret/Documents/github/react-native-cloud-fs",
-  "_where": "/Users/nickpomfret/Documents/github/react-native-cloud-fs.example/Example",
+  "_spec": "react-native-cloud-fs@git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
+  "_where": "/Users/nickpomfret/Documents/github/react-native-cloud-fs/Example",
   "author": "",
   "dependencies": {},
   "description": "## Getting started",

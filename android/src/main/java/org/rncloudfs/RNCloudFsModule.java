@@ -20,6 +20,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.bridge.WritableNativeMap;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -50,6 +51,14 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
         reactContext.addActivityEventListener(this);
     }
 
+    @ReactMethod
+    public void listFiles(String path, Promise promise) {
+        GoogleApiClient googleApiClient = onClientConnected();
+        googleApiClient.blockingConnect();
+
+        new ListFilesTask(googleApiClient, promise).execute(path);
+    }
+
     /**
      * Copy the source into the google drive database using
      *
@@ -58,7 +67,7 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
      * @param mimeType        an optional mime-type for the database, if null a guess will be made
      */
     @ReactMethod
-    public void copyToCloud(ReadableMap source, String destinationPath, @Nullable String mimeType, final Promise promise) {
+    public void copyToCloud(ReadableMap source, String destinationPath, @Nullable String mimeType, Promise promise) {
         try {
             String uriOrPath = source.hasKey("uri") ? source.getString("uri") : null;
 
@@ -71,16 +80,16 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 return;
             }
 
-            final SourceUri sourceUri = new SourceUri(uriOrPath, source.hasKey("http-headers") ? source.getMap("http-headers") : null);
+            SourceUri sourceUri = new SourceUri(uriOrPath, source.hasKey("http-headers") ? source.getMap("http-headers") : null);
 
-            final String actualMimeType;
+            String actualMimeType;
             if (mimeType == null) {
                 actualMimeType = guessMimeType(uriOrPath);
             } else {
                 actualMimeType = null;
             }
 
-            final String folder = getApplicationName(reactContext) + "/" + destinationPath;
+            String folder = getApplicationName(reactContext) + "/" + destinationPath;
 
             GoogleApiClient googleApiClient = onClientConnected();
             googleApiClient.blockingConnect();
@@ -240,6 +249,18 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 input.close();
             }
         }
+    }
+
+
+    @NonNull
+    private static WritableNativeMap fileToMap(File file) {
+        WritableNativeMap fileMap = new WritableNativeMap();
+        fileMap.putString("name", file.getName());
+        fileMap.putString("path", file.getAbsolutePath());
+        fileMap.putBoolean("isDirectory", file.isDirectory());
+        fileMap.putBoolean("isFile", file.isFile());
+        fileMap.putInt("size", (int) file.length());
+        return fileMap;
     }
 
     @Override
