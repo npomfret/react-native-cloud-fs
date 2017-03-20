@@ -2,18 +2,17 @@
 
 ## In progress
 
+ * `createCloudFile`
+   * write arbitrary text to a file
  * make list files ignore leading slash - force all paths to be relative to root
  
 ## API
 
- * give option to use app folder (android only)
  * `copyToCloud`
    * add option to overwrite existing file 
-   * add option to fail silenty if the file already exists
+   * add option to fail silently if the file already exists
    * add optional http headers (done for android)
    * ...think about return type, if any
- * `createCloudFile`
-   * write arbitrary text to a file
  * `moveCloudFile`
  * `createCouldDirectory`
  * `copyFromCloud`
@@ -28,6 +27,9 @@
  * check what happens (and fix) if a destination path contains non-filename safe characters ('#', '<', '$', '+', '%', '>', '!', '`', '&', '*', '‘', '|', '{', '?', '“', '=', '}', '/', ':', '\\', '@') [source](http://www.mtu.edu/umc/services/digital/writing/characters-avoid/).  _iOS only_
  * sensible & descriptive error messages for all error scenarios
  * `searchForCloudFiles`
+ * give option to use public v's private folders
+   * in android this is the difference between the 'app' folder and the 'root' folder
+   * in iOS this might be solved with the iCluod key/value store
  
 ## ExampleApp
 
