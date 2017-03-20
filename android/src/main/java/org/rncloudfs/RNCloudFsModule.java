@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.ApplicationInfo;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -20,11 +21,13 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.drive.Drive;
+import com.google.android.gms.drive.DriveFolder;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -33,8 +36,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
 
 import static android.app.Activity.RESULT_OK;
+import static org.rncloudfs.GoogleDriveApiClient.resolve;
 
 public class RNCloudFsModule extends ReactContextBaseJavaModule implements GoogleApiClient.OnConnectionFailedListener, LifecycleEventListener, ActivityEventListener {
     public static final String TAG = "RNCloudFs";
@@ -52,18 +57,63 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @ReactMethod
-    public void createFile(String path, String content) {
-
-    }
-
-
-    @ReactMethod
-    public void listFiles(String path, Promise promise) {
+    public void createFile(final String path, final String content, final Promise promise) {
         GoogleApiClient googleApiClient = onClientConnected();
         googleApiClient.blockingConnect();
 
-        ListFilesTask task = new ListFilesTask(promise, new GoogleDriveApiClient(googleApiClient));
-        task.execute(path);// not sure this need to be a task
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                GoogleApiClient googleApiClient = onClientConnected();
+                googleApiClient.blockingConnect();
+
+                GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(googleApiClient);
+                try {
+                    List<String> pathParts = resolve(path);
+                    if (pathParts.size() == 0) {
+                        promise.reject("error", "no filename specified");
+                        return;
+                    }
+
+                    DriveFolder parentFolder = googleDriveApiClient.rootFolder();
+                    if (pathParts.size() > 1) {
+                        List<String> parentDirs = pathParts.subList(0, pathParts.size() - 1);
+                        parentFolder = googleDriveApiClient.createFolders(parentFolder, parentDirs);
+                    }
+
+                    String filename = pathParts.get(pathParts.size() - 1);
+
+                    googleDriveApiClient.createFile(parentFolder, new InputDataSource() {
+                        @Override
+                        public void copyToOutputStream(OutputStream output) throws IOException {
+                            output.write(content.getBytes("UTF-8"));
+                        }
+                    }, filename);
+                    promise.resolve(null);
+                } catch (Exception e) {
+                    promise.reject("error", e);
+                }
+            }
+        });
+    }
+
+    @ReactMethod
+    public void listFiles(final String path, final Promise promise) {
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                GoogleApiClient googleApiClient = onClientConnected();
+                googleApiClient.blockingConnect();
+
+                GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(googleApiClient);
+                try {
+                    WritableMap data = googleDriveApiClient.listFiles(resolve(path));
+                    promise.resolve(data);
+                } catch (Exception e) {
+                    promise.reject("error", e);
+                }
+            }
+        });
     }
 
     /**
@@ -202,7 +252,11 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
         }
     }
 
-    public class SourceUri {
+    public interface InputDataSource {
+        void copyToOutputStream(OutputStream output) throws IOException;
+    }
+
+    public class SourceUri implements InputDataSource {
         public final String uri;
         @Nullable
         private final ReadableMap httpHeaders;

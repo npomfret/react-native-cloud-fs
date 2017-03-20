@@ -2,6 +2,7 @@ package org.rncloudfs;
 
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.facebook.react.bridge.WritableMap;
@@ -86,11 +87,40 @@ public class GoogleDriveApiClient {
         }
     }
 
-    interface FileVisitor {
+    public DriveFolder createFolders(DriveFolder parentFolder, List<String> pathParts) {
+        if(pathParts.isEmpty())
+            return parentFolder;
+
+        String name = pathParts.remove(0);
+
+        DriveFolder folder = folder(parentFolder, name);
+
+        if (folder == null) {
+            MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
+                    .setTitle(name)
+                    .build();
+
+            DriveFolder.DriveFolderResult result = createFolder(parentFolder, changeSet);
+
+            Log.i(TAG, "Created folder '" + name + "'");
+
+            return createFolders(result.getDriveFolder(), pathParts);
+        } else {
+            Log.d(TAG, "Folder already exists '" + name + "'");
+
+            return createFolders(folder, pathParts);
+        }
+    }
+
+    private interface FileVisitor {
         void fileMetadata(Metadata metadata);
     }
 
-    public Result createFileInFolder(DriveFolder driveFolder, RNCloudFsModule.SourceUri sourceUri, String filename, String mimeType) throws IOException {
+    public Result createFile(DriveFolder driveFolder, RNCloudFsModule.InputDataSource input, String filename) throws IOException {
+        return createFile(driveFolder, input, filename, null);
+    }
+
+    public Result createFile(DriveFolder driveFolder, RNCloudFsModule.InputDataSource input, String filename, String mimeType) throws IOException {
         if (fileExistsIn(driveFolder, filename)) {
             Log.w(TAG, "item already at location: " + filename);
             throw new IllegalStateException("Item already exists: " + filename);
@@ -104,7 +134,7 @@ public class GoogleDriveApiClient {
 
         DriveContents driveContents = result.getDriveContents();
         OutputStream outputStream = driveContents.getOutputStream();
-        sourceUri.copyToOutputStream(outputStream);
+        input.copyToOutputStream(outputStream);
         outputStream.close();
 
         MetadataChangeSet.Builder builder = new MetadataChangeSet.Builder()
@@ -132,13 +162,13 @@ public class GoogleDriveApiClient {
         }
     }
 
-    public WritableMap listFiles(String path) {
+    public WritableMap listFiles(List<String> paths) {
         WritableMap data = new WritableNativeMap();
-        data.putString("path", path);
+        data.putString("path", TextUtils.join("/", paths));
 
         final WritableNativeArray files = new WritableNativeArray();
 
-        listFiles(rootFolder(), resolve(path), new FileVisitor() {
+        listFiles(rootFolder(), paths, new FileVisitor() {
             @Override
             public void fileMetadata(Metadata metadata) {
                 if (!metadata.isDataValid())
@@ -164,7 +194,7 @@ public class GoogleDriveApiClient {
     public static List<String> resolve(String path) {
         List<String> names = new ArrayList<>();
         for (String pathPart : path.split("/")) {
-            if (pathPart.equals(".")) {
+            if (pathPart.equals(".") || pathPart.isEmpty()) {
                 //ignore
             } else if (pathPart.equals("..")) {
                 names.remove(names.size() - 1);

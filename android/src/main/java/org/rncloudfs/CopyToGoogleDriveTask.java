@@ -7,7 +7,6 @@ import android.util.Log;
 import com.facebook.react.bridge.Promise;
 import com.google.android.gms.common.api.Result;
 import com.google.android.gms.drive.DriveFolder;
-import com.google.android.gms.drive.MetadataChangeSet;
 
 import java.io.IOException;
 import java.util.List;
@@ -46,45 +45,25 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
     }
 
     private void createFileInFolders(DriveFolder parentFolder, List<String> pathParts, RNCloudFsModule.SourceUri sourceUri) {
-        if (pathParts.size() > 1) {
-            String name = pathParts.remove(0);
+        if (pathParts.size() > 1)
+            googleApiClient.createFolders(parentFolder, pathParts.subList(0, pathParts.size() - 1));
 
-            DriveFolder folder = googleApiClient.folder(parentFolder, name);
-
-            if (folder == null) {
-                MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
-                        .setTitle(name)
-                        .build();
-
-                DriveFolder.DriveFolderResult result = googleApiClient.createFolder(parentFolder, changeSet);
-
-                Log.i(TAG, "Created folder '" + name + "'");
-
-                createFileInFolders(result.getDriveFolder(), pathParts, sourceUri);
+        try {
+            Result result = googleApiClient.createFile(parentFolder, sourceUri, pathParts.get(0), mimeType);
+            if (!result.getStatus().isSuccess()) {
+                Log.e(TAG, "Failed to create new content");
+                promise.reject("Failed to create new content", "Failed to create new content");
             } else {
-                Log.d(TAG, "Folder already exists '" + name + "'");
-
-                createFileInFolders(folder, pathParts, sourceUri);
-            }
-
-        } else {
-            try {
-                Result result = googleApiClient.createFileInFolder(parentFolder, sourceUri, pathParts.get(0), mimeType);
-                if (!result.getStatus().isSuccess()) {
-                    Log.e(TAG, "Failed to create new content");
-                    promise.reject("Failed to create new content", "Failed to create new content");
+                if (result instanceof DriveFolder.DriveFileResult) {
+                    DriveFolder.DriveFileResult driveFileResult = (DriveFolder.DriveFileResult) result;
+                    promise.resolve(driveFileResult.getDriveFile().getDriveId().toString());
                 } else {
-                    if (result instanceof DriveFolder.DriveFileResult) {
-                        DriveFolder.DriveFileResult driveFileResult = (DriveFolder.DriveFileResult) result;
-                        promise.resolve(driveFileResult.getDriveFile().getDriveId().toString());
-                    } else {
-                        throw new IllegalStateException("Should not get here");
-                    }
+                    throw new IllegalStateException("Should not get here");
                 }
-            } catch (IOException e) {
-                Log.e(TAG, "Failed to read " + sourceUri, e);
-                promise.reject("Failed to read input", e);
             }
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to read " + sourceUri, e);
+            promise.reject("Failed to read input", e);
         }
     }
 
