@@ -35,6 +35,9 @@ RCT_EXPORT_METHOD(listFiles:(NSString *)destinationPath
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSFileManager* fileManager = [NSFileManager defaultManager];
         NSError *error = nil;
+
+        NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+        [dateFormatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZZZ"];
         
         [self rootDirectoryForICloud:^(NSURL *ubiquityURL) {
             if (ubiquityURL) {
@@ -62,10 +65,13 @@ RCT_EXPORT_METHOD(listFiles:(NSString *)destinationPath
                         if(!isDir && !isFile)
                             return;
                         
+                        NSDate* modDate = [attributes objectForKey:NSFileModificationDate];
+                        
                         [output addObject:@{
                                             @"name": object,
                                             @"path": path,
                                             @"size": [attributes objectForKey:NSFileSize],
+                                            @"lastModified": [dateFormatter stringFromDate:modDate],
                                             @"isDirectory": @(isDir),
                                             @"isFile": @(isFile)
                                             }];
