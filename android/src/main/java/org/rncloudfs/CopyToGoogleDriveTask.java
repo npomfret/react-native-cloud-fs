@@ -46,7 +46,7 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
 
     private void createFileInFolders(DriveFolder parentFolder, List<String> pathParts, RNCloudFsModule.SourceUri sourceUri) {
         if (pathParts.size() > 1)
-            googleApiClient.createFolders(parentFolder, pathParts.subList(0, pathParts.size() - 1));
+            parentFolder = googleApiClient.createFolders(parentFolder, pathParts.subList(0, pathParts.size() - 1));
 
         try {
             Result result = googleApiClient.createFile(parentFolder, sourceUri, pathParts.get(0), mimeType);
