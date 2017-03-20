@@ -104,6 +104,7 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
     private void createFileInFolder(DriveFolder driveFolder, RNCloudFsModule.SourceUri sourceUri, String filename) {
         Metadata metadata = find(driveFolder, filename);
         if(metadata != null) {
+            Log.w(TAG, "item already at location: " + metadata);
             throw new IllegalStateException("Item already exists at " + outputPath);
         }
 
