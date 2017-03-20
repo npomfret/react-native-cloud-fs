@@ -32,6 +32,10 @@ RCT_EXPORT_METHOD(listFiles:(NSString *)destinationPath
                     NSError *error = nil;
 
                     NSArray *contents = [fileManager contentsOfDirectoryAtPath:dir error:&error];
+                    if(error) {
+                        return reject(@"error", error.description, nil);
+                    }
+                    
                     [contents enumerateObjectsUsingBlock:^(id object, NSUInteger idx, BOOL *stop) {
                         NSString *path = [dirPath stringByAppendingPathComponent:object];
                         NSDictionary *attributes = [fileManager attributesOfItemAtPath:path error:nil];
@@ -54,11 +58,11 @@ RCT_EXPORT_METHOD(listFiles:(NSString *)destinationPath
                     }];
                     
                     if (error) {
-                        return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: could not copy to iCloud drive '%@'", destinationPath], nil);
+                        return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: could not copy to iCloud drive '%@'", destinationPath], error);
                     }
                 }
                 
-                resolve(output);
+                resolve(@{@"files": output, @"path": dirPath});
                 
             } else {
                 NSLog(@"Could not retrieve a ubiquityURL");
@@ -105,7 +109,7 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)source :(NSString *)destinationPat
                 }
             } failureBlock:^(NSError *error) {
                 NSLog(@"source file does not exist %@", sourceUri);
-                return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
+                return reject(@"error", error.description, nil);
             }];
         } else if ([sourceUri hasPrefix:@"file:/"] || [sourceUri hasPrefix:@"/"]) {
             NSError *error;
@@ -166,8 +170,7 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)source :(NSString *)destinationPat
                     return resolve(@{@"path": targetFile.absoluteString});
                 } else {
                     NSLog(@"Error occurred: %@", error);
-                    NSString *codeWithDomain = [NSString stringWithFormat:@"E%@%zd", error.domain.uppercaseString, error.code];
-                    return reject(codeWithDomain, error.localizedDescription, error);
+                    return reject(@"error", error.description, nil);
                 }
             } else {
                 NSLog(@"Could not retrieve a ubiquityURL");
