@@ -1,6 +1,9 @@
 # todo
 
- * release initial version to NPM
+## In progress
+
+ * `listCloudFiles`
+   * get metadata for file (isDirectory, size, content-type, downloaded etc)
  
 ## API
 
@@ -18,8 +21,6 @@
  * `deleteFromCloud`
    * single file
    * entire directory
- * `listCloudFiles`
-   * get metadata for file (isDirectory, size, content-type, downloaded etc)
  * `download`
    * single file
    * entire directory
