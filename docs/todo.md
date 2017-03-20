@@ -2,13 +2,14 @@
 
 ## In progress
 
- * `listCloudFiles`
-   * get metadata for file (isDirectory, size, content-type, downloaded etc)
+ * make list files ignore leading slash - force all paths to be relative to root
  
 ## API
 
+ * give option to use app folder (android only)
  * `copyToCloud`
    * add option to overwrite existing file 
+   * add option to fail silenty if the file already exists
    * add optional http headers (done for android)
    * ...think about return type, if any
  * `createCloudFile`

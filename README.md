@@ -98,4 +98,20 @@ _mimeType_:  a mime type to store the file with **or null** (android only) , e.g
  * `text/plain`
  * `application/json`
  * `image/jpeg`
- 
+
+### listFiles
+Lists files in a directory along with some file metadata
+
+```javascript
+const path = "dirA/dirB";
+
+RNCloudFs.listFiles(path)
+  .then((res) => {
+    console.log("it worked", res);
+  })
+  .catch((err) => {
+    console.warn("it failed", err);
+  })
+```
+
+_path_: a path representing a directory/folder.  On iOS the root folder is the app folder. On Android the root folder is the _My Drive_ folder.
