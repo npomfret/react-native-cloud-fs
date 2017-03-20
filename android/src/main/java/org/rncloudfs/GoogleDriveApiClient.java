@@ -30,8 +30,8 @@ public class GoogleDriveApiClient {
         this.googleApiClient = googleApiClient;
     }
 
-    public DriveFolder appFolder() {
-        return Drive.DriveApi.getAppFolder(googleApiClient);
+    public DriveFolder rootFolder() {
+        return Drive.DriveApi.getRootFolder(googleApiClient);
     }
 
     public DriveFolder.DriveFolderResult createFolder(DriveFolder parentFolder, MetadataChangeSet changeSet) {
@@ -138,7 +138,7 @@ public class GoogleDriveApiClient {
 
         final WritableNativeArray files = new WritableNativeArray();
 
-        listFiles(appFolder(), resolve(path), new FileVisitor() {
+        listFiles(rootFolder(), resolve(path), new FileVisitor() {
             @Override
             public void fileMetadata(Metadata metadata) {
                 if (!metadata.isDataValid())
@@ -161,7 +161,7 @@ public class GoogleDriveApiClient {
     }
 
     @NonNull
-    private static List<String> resolve(String path) {
+    public static List<String> resolve(String path) {
         List<String> names = new ArrayList<>();
         for (String pathPart : path.split("/")) {
             if (pathPart.equals(".")) {

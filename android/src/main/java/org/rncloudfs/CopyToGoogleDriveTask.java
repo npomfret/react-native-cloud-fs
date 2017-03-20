@@ -11,9 +11,9 @@ import com.google.android.gms.drive.DriveFolder;
 import com.google.android.gms.drive.MetadataChangeSet;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
+import static org.rncloudfs.GoogleDriveApiClient.resolve;
 import static org.rncloudfs.RNCloudFsModule.TAG;
 
 public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, Void, Void> {
@@ -32,17 +32,12 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
 
     @Override
     protected Void doInBackground(RNCloudFsModule.SourceUri... params) {
-        List<String> parthParts = new ArrayList<>();
-        for (String name : outputPath.split("/")) {
-            if (name.trim().length() > 0) {
-                parthParts.add(name);
-            }
-        }
+        List<String> pathParts = resolve(outputPath);
 
         RNCloudFsModule.SourceUri sourceUri = params[0];
         try {
-            DriveFolder rootFolder = googleApiClient.appFolder();
-            createFileInFolders(rootFolder, parthParts, sourceUri);
+            DriveFolder rootFolder = googleApiClient.rootFolder();
+            createFileInFolders(rootFolder, pathParts, sourceUri);
         } catch (Exception e) {
             Log.e(TAG, "Failed to write " + outputPath, e);
             promise.reject("Failed copy '" + sourceUri.uri + "' to " + outputPath, e);
