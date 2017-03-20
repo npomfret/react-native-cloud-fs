@@ -52,11 +52,18 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @ReactMethod
+    public void createFile(String path, String content) {
+
+    }
+
+
+    @ReactMethod
     public void listFiles(String path, Promise promise) {
         GoogleApiClient googleApiClient = onClientConnected();
         googleApiClient.blockingConnect();
 
-        new ListFilesTask(googleApiClient, promise).execute(path);
+        ListFilesTask task = new ListFilesTask(promise, new GoogleDriveApiClient(googleApiClient));
+        task.execute(path);// not sure this need to be a task
     }
 
     /**
@@ -95,14 +102,14 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
             googleApiClient.blockingConnect();
 
             // needs to be an async task because it may do some network access
-            CopyToGoogleDriveTask copyToGoogleDriveTask = new CopyToGoogleDriveTask(
-                    googleApiClient,
+            CopyToGoogleDriveTask task = new CopyToGoogleDriveTask(
                     folder,
                     actualMimeType,
-                    promise
+                    promise,
+                    new GoogleDriveApiClient(googleApiClient)
             );
 
-            copyToGoogleDriveTask.execute(sourceUri);
+            task.execute(sourceUri);
         } catch (Exception e) {
             Log.e(TAG, "Failed to copy", e);
             promise.reject("Failed to copy", e);

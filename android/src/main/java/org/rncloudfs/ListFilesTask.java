@@ -4,20 +4,18 @@ import android.os.AsyncTask;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.WritableMap;
-import com.google.android.gms.common.api.GoogleApiClient;
 
 public class ListFilesTask extends AsyncTask<String, Object, Void> {
-    private final GoogleApiClient googleApiClient;
-    private Promise promise;
+    private final Promise promise;
+    private final GoogleDriveApiClient googleDriveApiClient;
 
-    public ListFilesTask(GoogleApiClient googleApiClient, Promise promise) {
-        this.googleApiClient = googleApiClient;
+    public ListFilesTask(Promise promise, GoogleDriveApiClient googleDriveApiClient) {
+        this.googleDriveApiClient = googleDriveApiClient;
         this.promise = promise;
     }
 
     @Override
     protected Void doInBackground(String... params) {
-        GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(googleApiClient);
         String path = params[0];
         try {
             WritableMap data = googleDriveApiClient.listFiles(path);

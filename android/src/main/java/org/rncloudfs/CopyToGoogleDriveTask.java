@@ -5,7 +5,6 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 
 import com.facebook.react.bridge.Promise;
-import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.Result;
 import com.google.android.gms.drive.DriveFolder;
 import com.google.android.gms.drive.MetadataChangeSet;
@@ -23,11 +22,11 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
     private final Promise promise;
     private final GoogleDriveApiClient googleApiClient;
 
-    public CopyToGoogleDriveTask(GoogleApiClient googleApiClient, String outputPath, @Nullable String mimeType, Promise promise) {
+    public CopyToGoogleDriveTask(String outputPath, @Nullable String mimeType, Promise promise, GoogleDriveApiClient googleDriveApiClient) {
         this.outputPath = outputPath;
         this.mimeType = mimeType;
         this.promise = promise;
-        this.googleApiClient = new GoogleDriveApiClient(googleApiClient);
+        this.googleApiClient = googleDriveApiClient;
     }
 
     @Override
