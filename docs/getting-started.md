@@ -2,17 +2,14 @@
 
 An example project can be found at [react-native-cloud-fs-example](https://github.com/npomfret/react-native-cloud-fs-example).
 
-This package is not released yet and is a work in progress.  Add this to your _package.json_
+This package is not released to npm (yet)...
 
-`"react-native-cloud-fs": "git://github.com/npomfret/react-native-cloud-fs.git"`
-
-And then run:
-
-`$ react-native link react-native-cloud-fs`
+    npm install react-native-cloud-fs@https://github.com/npomfret/react-native-cloud-fs.git --save
+    react-native link react-native-cloud-fs
 
 ### iOS
 
-On the device, make sure iCloud Drive is enabled.
+On the device, make sure iCloud Drive is enabled.  And it's helpful to have the iClound Drive app available.
 
 In xCode...
 
