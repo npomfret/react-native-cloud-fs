@@ -14,9 +14,23 @@
 }
 RCT_EXPORT_MODULE()
 
-RCT_EXPORT_METHOD(listFiles:(NSString *)destinationPath
+RCT_EXPORT_METHOD(createFile:(NSString *)destinationPath content:(NSString *)content
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSString *filename = [destinationPath lastPathComponent];
+        NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+        NSError *error;
+        
+        [content writeToFile:content atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        
+        [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
+    });
+}
+
+RCT_EXPORT_METHOD(listFiles:(NSString *)destinationPath
+                      resolver:(RCTPromiseResolveBlock)resolve
+                      rejecter:(RCTPromiseRejectBlock)reject) {
     
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         NSFileManager* fileManager = [NSFileManager defaultManager];
@@ -151,17 +165,22 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)source :(NSString *)destinationPat
              resolver:(RCTPromiseResolveBlock)resolve
              rejecter:(RCTPromiseRejectBlock)reject {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSLog(@"Moving file %@ to %@", tempFile, destinationPath);
+        NSString * destPath = destinationPath;
+        while ([destPath hasPrefix:@"/"]) {
+            destPath = [destPath substringFromIndex:1];
+        }
+        
+        NSLog(@"Moving file %@ to %@", tempFile, destPath);
         
         NSFileManager* fileManager = [NSFileManager defaultManager];
         
         [self rootDirectoryForICloud:^(NSURL *ubiquityURL) {
             if (ubiquityURL) {
-                NSURL* targetFile = [ubiquityURL URLByAppendingPathComponent:destinationPath];
+                NSURL* targetFile = [ubiquityURL URLByAppendingPathComponent:destPath];
                 NSLog(@"Target file: %@", targetFile.path);
                 
                 NSURL *dir = [targetFile URLByDeletingLastPathComponent];
-                if (![fileManager fileExistsAtPath:dir.path isDirectory:nil]) {
+                if (![fileManager fileExistsAtPath:dir.path]) {
                     [fileManager createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
                 }
                 
