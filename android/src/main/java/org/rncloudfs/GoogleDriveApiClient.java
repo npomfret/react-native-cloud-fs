@@ -19,8 +19,10 @@ import com.google.android.gms.drive.MetadataChangeSet;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import static org.rncloudfs.RNCloudFsModule.TAG;
 
@@ -168,6 +170,8 @@ public class GoogleDriveApiClient {
 
         final WritableNativeArray files = new WritableNativeArray();
 
+        final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.getDefault());
+
         listFiles(rootFolder(), paths, new FileVisitor() {
             @Override
             public void fileMetadata(Metadata metadata) {
@@ -175,9 +179,11 @@ public class GoogleDriveApiClient {
                     return;
 
                 WritableNativeMap file = new WritableNativeMap();
+
                 file.putBoolean("isDirectory", metadata.isFolder());
                 file.putBoolean("isFile", !metadata.isFolder());
                 file.putString("name", metadata.getTitle());
+                file.putString("lastModified", simpleDateFormat.format(metadata.getModifiedDate()));
                 file.putString("path", metadata.getDriveId().toString());
                 file.putInt("size", (int) metadata.getFileSize());
 
