@@ -4,12 +4,6 @@
  
 ## API
 
- * make android listFiles return lastModifiedDate in iso format
- * `copyToCloud`
-   * add option to overwrite existing file 
-   * add option to fail silently if the file already exists
-   * add optional http headers (done for android)
-   * ...think about return type, if any
  * `moveFile` / `renameFile`
  * `createCouldDirectory`
  * `copyFromCloud`
@@ -20,6 +14,13 @@
  * `deleteFromCloud`
    * single file
    * entire directory
+ * option to save images to 
+  * ios photos
+  * android clound images..?
+ * `copyToCloud`
+   * add option to overwrite existing file 
+   * add option to fail silently if the file already exists
+   * add optional http headers (done for android)
  * check what happens (and fix) if a destination path contains non-filename safe characters ('#', '<', '$', '+', '%', '>', '!', '`', '&', '*', '‘', '|', '{', '?', '“', '=', '}', '/', ':', '\\', '@') [source](http://www.mtu.edu/umc/services/digital/writing/characters-avoid/).  _iOS only_
  * sensible & descriptive error messages for all error scenarios
  * `searchForCloudFiles`
