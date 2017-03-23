@@ -45,47 +45,52 @@ RCT_EXPORT_METHOD(listFiles:(NSString *)destinationPath
         [self rootDirectoryForICloud:^(NSURL *ubiquityURL) {
             if (ubiquityURL) {
                 NSURL* dir = [ubiquityURL URLByAppendingPathComponent:destinationPath];
-                NSMutableArray<NSString *> *output = [NSMutableArray new];
                 NSString* dirPath = [dir.path stringByStandardizingPath];
                 
-                if ([fileManager fileExistsAtPath:dirPath]) {
+                NSMutableArray<NSString *> *output = [NSMutableArray new];
+                
+                NSError *error = nil;
+                NSArray *contents = [fileManager contentsOfDirectoryAtPath:dir error:&error];
+                if(error) {
+                    return reject(@"error", error.description, nil);
+                }
+                
+                [contents enumerateObjectsUsingBlock:^(id object, NSUInteger idx, BOOL *stop) {
+                    NSString *path = [dirPath stringByAppendingPathComponent:object];
+
                     NSError *error = nil;
-
-                    NSArray *contents = [fileManager contentsOfDirectoryAtPath:dir error:&error];
+                    NSDictionary *attributes = [fileManager attributesOfItemAtPath:path error:&error];
                     if(error) {
-                        return reject(@"error", error.description, nil);
+                        NSLog(@"problem getting attributes for %@", path);
+                        //skip this one
                     }
                     
-                    [contents enumerateObjectsUsingBlock:^(id object, NSUInteger idx, BOOL *stop) {
-                        NSString *path = [dirPath stringByAppendingPathComponent:object];
-                        NSDictionary *attributes = [fileManager attributesOfItemAtPath:path error:nil];
-
-                        NSFileAttributeType type = [attributes objectForKey:NSFileType];
-                        
-                        bool isDir = type == NSFileTypeDirectory;
-                        bool isFile = type == NSFileTypeRegular;
-                        
-                        if(!isDir && !isFile)
-                            return;
-                        
-                        NSDate* modDate = [attributes objectForKey:NSFileModificationDate];
-                        
-                        [output addObject:@{
-                                            @"name": object,
-                                            @"path": path,
-                                            @"size": [attributes objectForKey:NSFileSize],
-                                            @"lastModified": [dateFormatter stringFromDate:modDate],
-                                            @"isDirectory": @(isDir),
-                                            @"isFile": @(isFile)
-                                            }];
-                    }];
+                    NSFileAttributeType type = [attributes objectForKey:NSFileType];
                     
-                    if (error) {
-                        return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", destinationPath], error);
-                    }
+                    bool isDir = type == NSFileTypeDirectory;
+                    bool isFile = type == NSFileTypeRegular;
+                    
+                    if(!isDir && !isFile)
+                        return;
+                    
+                    NSDate* modDate = [attributes objectForKey:NSFileModificationDate];
+                    
+                    [output addObject:@{
+                                        @"name": object,
+                                        @"path": path,
+                                        @"size": [attributes objectForKey:NSFileSize],
+                                        @"lastModified": [dateFormatter stringFromDate:modDate],
+                                        @"isDirectory": @(isDir),
+                                        @"isFile": @(isFile)
+                                        }];
+                }];
+                
+                if (error) {
+                    return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", destinationPath], error);
                 }
                 
                 return resolve(@{@"files": output, @"path": dirPath});
+                
             } else {
                 NSLog(@"Could not retrieve a ubiquityURL");
                 return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", destinationPath], nil);
