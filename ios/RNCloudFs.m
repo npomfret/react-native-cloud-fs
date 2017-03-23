@@ -24,7 +24,7 @@ RCT_EXPORT_METHOD(createFile:(NSString *)destinationPath content:(NSString *)con
         NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
 
         NSError *error;
-        [content writeToFile:content atomically:YES encoding:NSUTF8StringEncoding error:&error];
+        [content writeToFile:tempFile atomically:YES encoding:NSUTF8StringEncoding error:&error];
         if(error) {
             return reject(@"error", error.description, nil);
         }
