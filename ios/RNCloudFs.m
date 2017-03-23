@@ -17,7 +17,9 @@ RCT_EXPORT_MODULE()
 RCT_EXPORT_METHOD(createFile:(NSString *)destinationPath content:(NSString *)content
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
+    
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+
         NSString *filename = [destinationPath lastPathComponent];
         NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
         NSError *error;
@@ -33,6 +35,7 @@ RCT_EXPORT_METHOD(listFiles:(NSString *)destinationPath
                       rejecter:(RCTPromiseRejectBlock)reject) {
     
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        
         NSFileManager* fileManager = [NSFileManager defaultManager];
         NSError *error = nil;
 
@@ -78,15 +81,14 @@ RCT_EXPORT_METHOD(listFiles:(NSString *)destinationPath
                     }];
                     
                     if (error) {
-                        return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: could not copy to iCloud drive '%@'", destinationPath], error);
+                        return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", destinationPath], error);
                     }
                 }
                 
-                resolve(@{@"files": output, @"path": dirPath});
-                
+                return resolve(@{@"files": output, @"path": dirPath});
             } else {
                 NSLog(@"Could not retrieve a ubiquityURL");
-                return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: could not copy to iCloud drive '%@'", destinationPath], nil);
+                return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", destinationPath], nil);
             }
         }];
     });
@@ -125,15 +127,14 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)source :(NSString *)destinationPat
                     [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
                 } else {
                     NSLog(@"source file does not exist %@", sourceUri);
-                    return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: failed to copy asset '%@'", sourceUri], nil);
+                    return reject(@"error", [NSString stringWithFormat:@"failed to copy asset '%@'", sourceUri], nil);
                 }
             } failureBlock:^(NSError *error) {
                 NSLog(@"source file does not exist %@", sourceUri);
                 return reject(@"error", error.description, nil);
             }];
         } else if ([sourceUri hasPrefix:@"file:/"] || [sourceUri hasPrefix:@"/"]) {
-            NSError *error;
-            NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^file:/+" options:NSRegularExpressionCaseInsensitive error:&error];
+            NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^file:/+" options:NSRegularExpressionCaseInsensitive error:nil];
             NSString *modifiedSourceUri = [regex stringByReplacingMatchesInString:sourceUri options:0 range:NSMakeRange(0, [sourceUri length]) withTemplate:@"/"];
             
             if ([fileManager fileExistsAtPath:modifiedSourceUri isDirectory:nil]) {
@@ -143,12 +144,17 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)source :(NSString *)destinationPat
                 // ...setUbiquitous will move the file instead of copying it, so as a work around lets copy it to a tmp file first
                 NSString *filename = [sourceUri lastPathComponent];
                 NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+
                 NSError *error;
                 [fileManager copyItemAtPath:sourceURL toPath:tempFile error:&error];
+                if(error) {
+                    return reject(@"error", error.description, nil);
+                }
+                
                 [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
             } else {
                 NSLog(@"source file does not exist %@", sourceUri);
-                return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: no such file or directory, open '%@'", sourceUri], nil);
+                return reject(@"error", [NSString stringWithFormat:@"no such file or directory, open '%@'", sourceUri], nil);
             }
         } else {
             NSURL *url = [NSURL URLWithString:sourceUri];
@@ -161,7 +167,7 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)source :(NSString *)destinationPat
                 [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
             } else {
                 NSLog(@"source file does not exist %@", sourceUri);
-                return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: cannot download '%@'", sourceUri], nil);
+                return reject(@"error", [NSString stringWithFormat:@"cannot download '%@'", sourceUri], nil);
             }
         }
     });
@@ -199,7 +205,7 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)source :(NSString *)destinationPat
                 }
             } else {
                 NSLog(@"Could not retrieve a ubiquityURL");
-                return reject(@"ENOENT", [NSString stringWithFormat:@"ENOENT: could not copy to iCloud drive '%@'", tempFile.absolutePath], nil);
+                return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", tempFile.absolutePath], nil);
             }
         }];
     });
