@@ -21,10 +21,13 @@ RCT_EXPORT_METHOD(createFile:(NSString *)destinationPath content:(NSString *)con
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
 
         NSString *filename = [destinationPath lastPathComponent];
-        NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+        NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
+
         NSError *error;
-        
-        [content writeToFile:content atomically:YES encoding:NSUTF8StringEncoding error:nil];
+        [content writeToFile:content atomically:YES encoding:NSUTF8StringEncoding error:&error];
+        if(error) {
+            return reject(@"error", error.description, nil);
+        }
         
         [self moveToICloud:tempFile :destinationPath resolver:resolve rejecter:reject];
     });
@@ -37,7 +40,6 @@ RCT_EXPORT_METHOD(listFiles:(NSString *)destinationPath
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         
         NSFileManager* fileManager = [NSFileManager defaultManager];
-        NSError *error = nil;
 
         NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
         [dateFormatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZZZ"];
@@ -189,10 +191,11 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)source :(NSString *)destinationPat
         
         NSLog(@"Moving file %@ to %@", tempFile, destPath);
         
-        NSFileManager* fileManager = [NSFileManager defaultManager];
-        
         [self rootDirectoryForICloud:^(NSURL *ubiquityURL) {
+            NSFileManager* fileManager = [NSFileManager defaultManager];
+
             if (ubiquityURL) {
+
                 NSURL* targetFile = [ubiquityURL URLByAppendingPathComponent:destPath];
                 NSLog(@"Target file: %@", targetFile.path);
                 
@@ -202,13 +205,19 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)source :(NSString *)destinationPat
                 }
                 
                 NSError *error;
-                if ([fileManager setUbiquitous:YES itemAtURL:[NSURL fileURLWithPath:tempFile] destinationURL:targetFile error:&error]) {
-                    return resolve(@{@"path": targetFile.absoluteString});
-                } else {
+                [fileManager setUbiquitous:YES itemAtURL:[NSURL fileURLWithPath:tempFile] destinationURL:targetFile error:&error];
+                if(error) {
                     NSLog(@"Error occurred: %@", error);
                     return reject(@"error", error.description, nil);
                 }
+                
+                [fileManager removeItemAtPath:tempFile error:&error];
+                
+                return resolve(@{@"path": targetFile.absoluteString});
             } else {
+                NSError *error;
+                [fileManager removeItemAtPath:tempFile error:&error];
+
                 NSLog(@"Could not retrieve a ubiquityURL");
                 return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", tempFile.absolutePath], nil);
             }
