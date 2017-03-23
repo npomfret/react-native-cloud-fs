@@ -91,7 +91,7 @@ RCT_EXPORT_METHOD(listFiles:(NSString *)destinationPath
                     return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", destinationPath], error);
                 }
                 
-                return resolve(@{@"files": output, @"path": dirPath});
+                return resolve(@{@"files": output, @"path": [dirPath stringByReplacingOccurrencesOfString:[ubiquityURL path] withString:@"."]});
                 
             } else {
                 NSLog(@"Could not retrieve a ubiquityURL");
