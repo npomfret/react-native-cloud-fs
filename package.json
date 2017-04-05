@@ -1,90 +1,14 @@
 {
-  "_args": [
-    [
-      {
-        "raw": "react-native-cloud-fs@file:///Users/nickpomfret/Documents/github/react-native-cloud-fs",
-        "scope": null,
-        "escapedName": "react-native-cloud-fs",
-        "name": "react-native-cloud-fs",
-        "rawSpec": "file:///Users/nickpomfret/Documents/github/react-native-cloud-fs",
-        "spec": "/Users/nickpomfret/Documents/github/react-native-cloud-fs",
-        "type": "directory"
-      },
-      "/Users/nickpomfret/Documents/github/react-native-cloud-fs.example/Example"
-    ],
-    [
-      {
-        "raw": "react-native-cloud-fs@git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
-        "scope": null,
-        "escapedName": "react-native-cloud-fs",
-        "name": "react-native-cloud-fs",
-        "rawSpec": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
-        "spec": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
-        "type": "hosted",
-        "hosted": {
-          "type": "github",
-          "ssh": "git@github.com:npomfret/react-native-cloud-fs.git",
-          "sshUrl": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
-          "httpsUrl": "git+https://github.com/npomfret/react-native-cloud-fs.git",
-          "gitUrl": "git://github.com/npomfret/react-native-cloud-fs.git",
-          "shortcut": "github:npomfret/react-native-cloud-fs",
-          "directUrl": "https://raw.githubusercontent.com/npomfret/react-native-cloud-fs/master/package.json"
-        }
-      },
-      "/Users/nickpomfret/Documents/github/react-native-cloud-fs/Example"
-    ]
-  ],
-  "_from": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
-  "_id": "react-native-cloud-fs@1.0.0",
-  "_inCache": true,
-  "_installable": true,
-  "_location": "/react-native-cloud-fs",
-  "_phantomChildren": {},
-  "_requested": {
-    "raw": "react-native-cloud-fs@git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
-    "scope": null,
-    "escapedName": "react-native-cloud-fs",
-    "name": "react-native-cloud-fs",
-    "rawSpec": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
-    "spec": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
-    "type": "hosted",
-    "hosted": {
-      "type": "github",
-      "ssh": "git@github.com:npomfret/react-native-cloud-fs.git",
-      "sshUrl": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
-      "httpsUrl": "git+https://github.com/npomfret/react-native-cloud-fs.git",
-      "gitUrl": "git://github.com/npomfret/react-native-cloud-fs.git",
-      "shortcut": "github:npomfret/react-native-cloud-fs",
-      "directUrl": "https://raw.githubusercontent.com/npomfret/react-native-cloud-fs/master/package.json"
-    }
-  },
-  "_requiredBy": [
-    "/"
-  ],
-  "_resolved": "git+ssh://git@github.com/npomfret/react-native-cloud-fs.git#80c8ab0e80ad5a6c4c585bcea66a25c92965fd2a",
-  "_shasum": "7491707da4ea93726a96acde84de953ab906c38a",
-  "_shrinkwrap": null,
-  "_spec": "react-native-cloud-fs@git+ssh://git@github.com/npomfret/react-native-cloud-fs.git",
-  "_where": "/Users/nickpomfret/Documents/github/react-native-cloud-fs/Example",
-  "author": "",
-  "dependencies": {},
-  "description": "## Getting started",
-  "devDependencies": {},
-  "gitHead": "223753ae0680e34c724cba422da7e719c1b13966",
-  "keywords": [
-    "react-native"
-  ],
-  "license": "",
-  "main": "index.js",
   "name": "react-native-cloud-fs",
-  "optionalDependencies": {},
-  "peerDependencies": {
-    "react-native": "^0.29.0"
-  },
-  "readme": "\n# react-native-cloud-fs\n\n## Getting started\n\n`$ npm install react-native-cloud-fs --save`\n\n### Mostly automatic installation\n\n`$ react-native link react-native-cloud-fs`\n\n### Manual installation\n\n\n#### iOS\n\n1. In XCode, in the project navigator, right click `Libraries` ➜ `Add Files to [your project's name]`\n2. Go to `node_modules` ➜ `react-native-cloud-fs` and add `RNCloudFs.xcodeproj`\n3. In XCode, in the project navigator, select your project. Add `libRNCloudFs.a` to your project's `Build Phases` ➜ `Link Binary With Libraries`\n4. Run your project (`Cmd+R`)<\n\n#### Android\n\n1. Open up `android/app/src/main/java/[...]/MainActivity.java`\n  - Add `import com.reactlibrary.RNCloudFsPackage;` to the imports at the top of the file\n  - Add `new RNCloudFsPackage()` to the list returned by the `getPackages()` method\n2. Append the following lines to `android/settings.gradle`:\n  \t```\n  \tinclude ':react-native-cloud-fs'\n  \tproject(':react-native-cloud-fs').projectDir = new File(rootProject.projectDir, \t'../node_modules/react-native-cloud-fs/android')\n  \t```\n3. Insert the following lines inside the dependencies block in `android/app/build.gradle`:\n  \t```\n      compile project(':react-native-cloud-fs')\n  \t```\n\n#### Windows\n[Read it! :D](https://github.com/ReactWindows/react-native)\n\n1. In Visual Studio add the `RNCloudFs.sln` in `node_modules/react-native-cloud-fs/windows/RNCloudFs.sln` folder to their solution, reference from their app.\n2. Open up your `MainPage.cs` app\n  - Add `using Cl.Json.RNCloudFs;` to the usings at the top of the file\n  - Add `new RNCloudFsPackage()` to the `List<IReactPackage>` returned by the `Packages` method\n      \n\n## Usage\n```javascript\nimport RNCloudFs from 'react-native-cloud-fs';\n\n// TODO: What do with the module?\nRNCloudFs;\n```\n  ",
-  "readmeFilename": "README.md",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "1.0.0"
+  "keywords": [
+    "react-native"
+  ],
+  "author": "",
+  "license": ""
 }
