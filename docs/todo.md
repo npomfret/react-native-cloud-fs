@@ -4,6 +4,7 @@
  
 ## API
 
+ * `exists`
  * `moveFile` / `renameFile`
  * `createCouldDirectory`
  * `copyFromCloud`
@@ -15,8 +16,8 @@
    * single file
    * entire directory
  * option to save images to 
-  * ios photos
-  * android clound images..?
+   * ios photos
+   * android clound images..?
  * `copyToCloud`
    * add option to overwrite existing file 
    * add option to fail silently if the file already exists
@@ -28,13 +29,7 @@
    * in android this is the difference between the 'app' folder and the 'root' folder
    * in iOS this might be solved with the iCloud key/value store
  
-## ExampleApp
-
- * link to file in icloud drive
- * link to file in google drive
- * working examples for all of the above
- 
 ## Other implementations
  
  * Dropbox
- * Windows
+ * google drive on iOS

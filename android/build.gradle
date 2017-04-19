@@ -34,7 +34,5 @@ allprojects {
 }
 
 dependencies {
-    compile 'com.google.android.gms:play-services-drive:9.8.0'
-    compile 'com.facebook.react:react-native:0.20.+'
+    compile 'com.facebook.react:react-native:+'
 }
-  
