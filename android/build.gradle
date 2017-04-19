@@ -34,5 +34,6 @@ allprojects {
 }
 
 dependencies {
+    compile 'com.google.android.gms:play-services-drive:+'
     compile 'com.facebook.react:react-native:+'
 }

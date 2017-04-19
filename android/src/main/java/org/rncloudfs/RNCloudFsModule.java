@@ -226,14 +226,13 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == REQUEST_CODE_RESOLUTION && resultCode == RESULT_OK)
-            this.googleApiClient.connect();
+    public void onNewIntent(Intent intent) {
     }
 
     // copied from BaseActivityEventListener
     public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
-        this.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_RESOLUTION && resultCode == RESULT_OK)
+            this.googleApiClient.connect();
     }
 
     @Override
