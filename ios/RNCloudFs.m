@@ -197,15 +197,26 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)source :(NSString *)destinationPat
             if (ubiquityURL) {
 
                 NSURL* targetFile = [ubiquityURL URLByAppendingPathComponent:destPath];
-                NSLog(@"Target file: %@", targetFile.path);
-                
                 NSURL *dir = [targetFile URLByDeletingLastPathComponent];
+                NSString *name = [targetFile lastPathComponent];
+
+                NSURL* uniqueFile = targetFile;
+                
+                int count = 1;
+                while([fileManager fileExistsAtPath:uniqueFile.path]) {
+                    NSString *uniqueName = [NSString stringWithFormat:@"%i.%@", count, name];
+                    uniqueFile = [dir URLByAppendingPathComponent:uniqueName];
+                    count++;
+                }
+
+                NSLog(@"Target file: %@", uniqueFile.path);
+                
                 if (![fileManager fileExistsAtPath:dir.path]) {
                     [fileManager createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
                 }
                 
                 NSError *error;
-                [fileManager setUbiquitous:YES itemAtURL:[NSURL fileURLWithPath:tempFile] destinationURL:targetFile error:&error];
+                [fileManager setUbiquitous:YES itemAtURL:[NSURL fileURLWithPath:tempFile] destinationURL:uniqueFile error:&error];
                 if(error) {
                     NSLog(@"Error occurred: %@", error);
                     return reject(@"error", error.description, nil);
@@ -213,13 +224,13 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)source :(NSString *)destinationPat
                 
                 [fileManager removeItemAtPath:tempFile error:&error];
                 
-                return resolve(@{@"path": targetFile.absoluteString});
+                return resolve(uniqueFile.absoluteString);
             } else {
                 NSError *error;
                 [fileManager removeItemAtPath:tempFile error:&error];
 
                 NSLog(@"Could not retrieve a ubiquityURL");
-                return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", tempFile.absolutePath], nil);
+                return reject(@"error", [NSString stringWithFormat:@"could not copy '%@' to iCloud drive", tempFile], nil);
             }
         }];
     });

@@ -1,7 +1,10 @@
 package org.rncloudfs;
 
 import android.app.Activity;
+import android.app.Dialog;
+import android.app.DialogFragment;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.ApplicationInfo;
@@ -43,7 +46,11 @@ import static org.rncloudfs.GoogleDriveApiClient.resolve;
 
 public class RNCloudFsModule extends ReactContextBaseJavaModule implements GoogleApiClient.OnConnectionFailedListener, LifecycleEventListener, ActivityEventListener {
     public static final String TAG = "RNCloudFs";
+
     private static final int REQUEST_CODE_RESOLUTION = 3;
+    private static final int REQUEST_RESOLVE_ERROR = 1001;
+    private static final String DIALOG_ERROR = "dialog_error";
+    private boolean isResolvingError = false;
 
     private final ReactApplicationContext reactContext;
     private GoogleApiClient googleApiClient;
@@ -227,27 +234,73 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
 
     @Override
     public void onNewIntent(Intent intent) {
-    }
-
-    // copied from BaseActivityEventListener
-    public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
-        if (requestCode == REQUEST_CODE_RESOLUTION && resultCode == RESULT_OK)
-            this.googleApiClient.connect();
+        System.out.println("RNCloudFsModule.onNewIntent");
     }
 
     @Override
-    public void onConnectionFailed(@NonNull ConnectionResult result) {
-        Log.w(TAG, "Google client API connection failed: " + result.toString());
+    public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CODE_RESOLUTION && resultCode == RESULT_OK)
+            this.googleApiClient.connect();
+        else if (requestCode == REQUEST_RESOLVE_ERROR) {
+            isResolvingError = false;
 
-        if (!result.hasResolution()) {
-            GoogleApiAvailability.getInstance().getErrorDialog(this.getCurrentActivity(), result.getErrorCode(), 0).show();
-            return;
+            if (resultCode == RESULT_OK) {
+                // Make sure the app is not already connected or attempting to connect
+                if (!googleApiClient.isConnecting() && !googleApiClient.isConnected()) {
+                    googleApiClient.connect();
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult result) {
+        if (isResolvingError) {
+            // Already attempting to resolve an error.
+        } else if (result.hasResolution()) {
+            try {
+                isResolvingError = true;
+                result.startResolutionForResult(getCurrentActivity(), REQUEST_RESOLVE_ERROR);
+            } catch (IntentSender.SendIntentException e) {
+                // There was an error with the resolution intent. Try again.
+                googleApiClient.connect();
+            }
+        } else {
+            showErrorDialog(result.getErrorCode());
+            isResolvingError = true;
+        }
+    }
+
+    private void showErrorDialog(int errorCode) {
+        ErrorDialogFragment dialogFragment = new ErrorDialogFragment();
+        Bundle args = new Bundle();
+        args.putInt(DIALOG_ERROR, errorCode);
+
+        dialogFragment.setArguments(args);
+        dialogFragment.show(getCurrentActivity().getFragmentManager(), "errordialog");
+    }
+
+    /* Called from ErrorDialogFragment when the dialog is dismissed. */
+    public void onDialogDismissed() {
+        isResolvingError = false;
+    }
+
+    /* A fragment to display an error dialog */
+    public static class ErrorDialogFragment extends DialogFragment {
+        public ErrorDialogFragment() {
         }
 
-        try {
-            result.startResolutionForResult(this.getCurrentActivity(), REQUEST_CODE_RESOLUTION);
-        } catch (IntentSender.SendIntentException e) {
-            Log.e(TAG, "Exception while starting resolution activity", e);
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            int errorCode = this.getArguments().getInt(DIALOG_ERROR);
+            return GoogleApiAvailability.getInstance().getErrorDialog(this.getActivity(), errorCode, REQUEST_RESOLVE_ERROR);
+        }
+
+        @Override
+        public void onDismiss(DialogInterface dialog) {
+            Activity activity = getActivity();
+
+            //todo - call back to onDialogDismissed
         }
     }
 
@@ -309,18 +362,6 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 input.close();
             }
         }
-    }
-
-
-    @NonNull
-    private static WritableNativeMap fileToMap(File file) {
-        WritableNativeMap fileMap = new WritableNativeMap();
-        fileMap.putString("name", file.getName());
-        fileMap.putString("path", file.getAbsolutePath());
-        fileMap.putBoolean("isDirectory", file.isDirectory());
-        fileMap.putBoolean("isFile", file.isFile());
-        fileMap.putInt("size", (int) file.length());
-        return fileMap;
     }
 
     @Override

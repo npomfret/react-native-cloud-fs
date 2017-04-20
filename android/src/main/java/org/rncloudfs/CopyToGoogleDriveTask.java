@@ -2,11 +2,13 @@ package org.rncloudfs;
 
 import android.os.AsyncTask;
 import android.support.annotation.Nullable;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.facebook.react.bridge.Promise;
 import com.google.android.gms.common.api.Result;
 import com.google.android.gms.drive.DriveFolder;
+import com.google.android.gms.drive.DriveId;
 
 import java.io.IOException;
 import java.util.List;
@@ -55,8 +57,7 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
                 promise.reject("Failed to create new content", "Failed to create new content");
             } else {
                 if (result instanceof DriveFolder.DriveFileResult) {
-                    DriveFolder.DriveFileResult driveFileResult = (DriveFolder.DriveFileResult) result;
-                    promise.resolve(driveFileResult.getDriveFile().getDriveId().toString());
+                    promise.resolve(TextUtils.join("/", pathParts));
                 } else {
                     throw new IllegalStateException("Should not get here");
                 }

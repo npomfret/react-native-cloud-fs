@@ -13,7 +13,9 @@ import com.google.android.gms.common.api.Result;
 import com.google.android.gms.drive.Drive;
 import com.google.android.gms.drive.DriveApi;
 import com.google.android.gms.drive.DriveContents;
+import com.google.android.gms.drive.DriveFile;
 import com.google.android.gms.drive.DriveFolder;
+import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.Metadata;
 import com.google.android.gms.drive.MetadataChangeSet;
 
@@ -123,9 +125,13 @@ public class GoogleDriveApiClient {
     }
 
     public Result createFile(DriveFolder driveFolder, RNCloudFsModule.InputDataSource input, String filename, String mimeType) throws IOException {
-        if (fileExistsIn(driveFolder, filename)) {
+        int count = 1;
+
+        String uniqueFilename = filename;
+        while (fileExistsIn(driveFolder, uniqueFilename)) {
             Log.w(TAG, "item already at location: " + filename);
-            throw new IllegalStateException("Item already exists: " + filename);
+            uniqueFilename = count + "." + filename;
+            count++;
         }
 
         DriveApi.DriveContentsResult result = Drive.DriveApi.newDriveContents(googleApiClient).await();
@@ -140,14 +146,14 @@ public class GoogleDriveApiClient {
         outputStream.close();
 
         MetadataChangeSet.Builder builder = new MetadataChangeSet.Builder()
-                .setTitle(filename);
+                .setTitle(uniqueFilename);
 
         if (mimeType != null) {
             builder.setMimeType(mimeType);
         }
 
         DriveFolder.DriveFileResult driveFileResult = driveFolder.createFile(googleApiClient, builder.build(), driveContents).await();
-        Log.i(TAG, "Created a file '" + filename + "' with content: " + driveFileResult.getDriveFile().getDriveId());
+        Log.i(TAG, "Created a file '" + uniqueFilename);
         return driveFileResult;
     }
 
