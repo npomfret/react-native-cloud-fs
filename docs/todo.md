@@ -4,15 +4,16 @@
  
 ## API
 
- * `exists`
- * `moveFile` / `renameFile`
- * `createCouldDirectory`
- * `copyFromCloud`
+ * send event when the files change
+ * add method: `exists`
+ * add method: `moveFile` / `renameFile`
+ * add method: `createCouldDirectory`
+ * add method: `copyFromCloud`
    * single file
    * to local file system
    * put (to rest endpoint)
    * post (mutipart form post)
- * `deleteFromCloud`
+ * add method: `deleteFromCloud`
    * single file
    * entire directory
  * option to save images to 
@@ -24,10 +25,7 @@
    * add optional http headers (done for android)
  * check what happens (and fix) if a destination path contains non-filename safe characters ('#', '<', '$', '+', '%', '>', '!', '`', '&', '*', '‘', '|', '{', '?', '“', '=', '}', '/', ':', '\\', '@') [source](http://www.mtu.edu/umc/services/digital/writing/characters-avoid/).  _iOS only_
  * sensible & descriptive error messages for all error scenarios
- * `searchForCloudFiles`
- * give option to use public v's private folders
-   * in android this is the difference between the 'app' folder and the 'root' folder
-   * in iOS this might be solved with the iCloud key/value store
+ * add method: `searchForCloudFiles`
  
 ## Other implementations
  
