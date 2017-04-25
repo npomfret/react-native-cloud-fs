@@ -3,14 +3,13 @@ package org.rncloudfs;
 import android.app.Activity;
 import android.app.Dialog;
 import android.app.DialogFragment;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
-import android.content.pm.ApplicationInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
@@ -61,115 +60,76 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
         reactContext.addActivityEventListener(this);
     }
 
+    /**
+     * android only method.  Just here to test the connection logic
+     */
+    @ReactMethod
+    public void reset(final Promise promise) {
+        final GoogleApiClient googleApiClient = this.googleApiClient;
+
+        connect(new GoogleApiClient.ConnectionCallbacks() {
+            @Override
+            public void onConnected(@Nullable Bundle bundle) {
+                googleApiClient.clearDefaultAccountAndReconnect();
+                googleApiClient.unregisterConnectionCallbacks(this);
+                promise.resolve(null);
+            }
+
+            @Override
+            public void onConnectionSuspended(int i) {
+
+            }
+        });
+    }
+
     @ReactMethod
     public void createFile(ReadableMap options, final Promise promise) {
-        GoogleApiClient googleApiClient = onClientConnected();
-        googleApiClient.blockingConnect();
-        if(!options.hasKey("targetPath")) {
+        if (!options.hasKey("targetPath")) {
             promise.reject("error", "targetPath not specified");
         }
         final String path = options.getString("targetPath");
 
-        if(!options.hasKey("content")) {
+        if (!options.hasKey("content")) {
             promise.reject("error", "content not specified");
         }
         final String content = options.getString("content");
 
         final boolean useDocumentsFolder = options.hasKey("scope") ? options.getString("scope").toLowerCase().equals("visible") : true;
 
-        AsyncTask.execute(new Runnable() {
-            @Override
-            public void run() {
-                GoogleApiClient googleApiClient = onClientConnected();
-                googleApiClient.blockingConnect();
-
-                GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(googleApiClient, reactContext);
-                try {
-                    List<String> pathParts = resolve(path);
-                    if (pathParts.size() == 0) {
-                        promise.reject("error", "no filename specified");
-                        return;
-                    }
-
-                    DriveFolder parentFolder = useDocumentsFolder ? googleDriveApiClient.documentsFolder() : googleDriveApiClient.appFolder();
-                    if (pathParts.size() > 1) {
-                        List<String> parentDirs = pathParts.subList(0, pathParts.size() - 1);
-                        parentFolder = googleDriveApiClient.createFolders(parentFolder, parentDirs);
-                    }
-
-                    String filename = pathParts.get(pathParts.size() - 1);
-
-                    googleDriveApiClient.createFile(parentFolder, new InputDataSource() {
-                        @Override
-                        public void copyToOutputStream(OutputStream output) throws IOException {
-                            output.write(content.getBytes("UTF-8"));
-                        }
-                    }, filename);
-                    promise.resolve(null);
-                } catch (Exception e) {
-                    promise.reject("error", e);
-                }
-            }
-        });
+        connect(new CreateFileTask(path, promise, useDocumentsFolder, content));
     }
 
     @ReactMethod
     public void fileExists(ReadableMap options, final Promise promise) {
-        if(!options.hasKey("targetPath")) {
+        if (!options.hasKey("targetPath")) {
             promise.reject("error", "targetPath not specified");
         }
-        final String path = options.getString("targetPath");
-        final boolean useDocumentsFolder = !options.hasKey("scope") || options.getString("scope").toLowerCase().equals("visible");
+        String path = options.getString("targetPath");
 
-        AsyncTask.execute(new Runnable() {
-            @Override
-            public void run() {
-                GoogleApiClient googleApiClient = onClientConnected();
-                googleApiClient.blockingConnect();
+        boolean useDocumentsFolder = !options.hasKey("scope") || options.getString("scope").toLowerCase().equals("visible");
 
-                GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(googleApiClient, reactContext);
-                try {
-                    boolean fileExists = googleDriveApiClient.fileExists(useDocumentsFolder, resolve(path));
-                    promise.resolve(fileExists);
-                } catch (Exception e) {
-                    promise.reject("error", e);
-                }
-            }
-        });
+        connect(new FileExistsTask(useDocumentsFolder, path, promise));
     }
 
     @ReactMethod
     public void listFiles(ReadableMap options, final Promise promise) {
-        if(!options.hasKey("targetPath")) {
+        if (!options.hasKey("targetPath")) {
             promise.reject("error", "targetPath not specified");
         }
-        final String path = options.getString("targetPath");
-        final boolean useDocumentsFolder = !options.hasKey("scope") || options.getString("scope").toLowerCase().equals("visible");
+        String path = options.getString("targetPath");
 
-        AsyncTask.execute(new Runnable() {
-            @Override
-            public void run() {
-                GoogleApiClient googleApiClient = onClientConnected();
-                googleApiClient.blockingConnect();
+        boolean useDocumentsFolder = !options.hasKey("scope") || options.getString("scope").toLowerCase().equals("visible");
 
-                GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(googleApiClient, reactContext);
-                try {
-                    WritableMap data = googleDriveApiClient.listFiles(useDocumentsFolder, resolve(path));
-                    promise.resolve(data);
-                } catch (Exception e) {
-                    promise.reject("error", e);
-                }
-            }
-        });
+        connect(new ListFilesTask(useDocumentsFolder, path, promise));
     }
 
     /**
      * Copy the source into the google drive database
      */
     @ReactMethod
-    public void copyToCloud(ReadableMap options, Promise promise) {
+    public void copyToCloud(ReadableMap options, final Promise promise) {
         try {
-            if(!options.hasKey("sourcePath")) {
+            if (!options.hasKey("sourcePath")) {
                 promise.reject("error", "sourcePath not specified");
             }
             ReadableMap source = options.getMap("sourcePath");
@@ -184,17 +144,17 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 return;
             }
 
-            if(!options.hasKey("targetPath")) {
+            if (!options.hasKey("targetPath")) {
                 promise.reject("error", "targetPath not specified");
             }
-            String destinationPath = options.getString("targetPath");
+            final String destinationPath = options.getString("targetPath");
 
             String mimeType = null;
-            if(options.hasKey("mimetype")) {
+            if (options.hasKey("mimetype")) {
                 mimeType = options.getString("mimetype");
             }
 
-            final boolean useDocumentsFolder = options.hasKey("scope") ? options.getString("scope").toLowerCase().equals("visible") : true;
+            boolean useDocumentsFolder = options.hasKey("scope") ? options.getString("scope").toLowerCase().equals("visible") : true;
 
             SourceUri sourceUri = new SourceUri(uriOrPath, source.hasKey("http-headers") ? source.getMap("http-headers") : null);
 
@@ -205,48 +165,19 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 actualMimeType = null;
             }
 
-            GoogleApiClient googleApiClient = onClientConnected();
-            googleApiClient.blockingConnect();
-
-            // needs to be an async task because it may do some network access
-            CopyToGoogleDriveTask task = new CopyToGoogleDriveTask(
+            connect(new CopyToGoogleDriveTask(
+                    sourceUri,
                     destinationPath,
                     actualMimeType,
                     promise,
-                    new GoogleDriveApiClient(googleApiClient, reactContext),
-                    useDocumentsFolder
+                    new GoogleDriveApiClient(this.googleApiClient, reactContext),
+                    useDocumentsFolder)
             );
 
-            task.execute(sourceUri);
         } catch (Exception e) {
             Log.e(TAG, "Failed to copy", e);
             promise.reject("Failed to copy", e);
         }
-    }
-
-    private GoogleApiClient onClientConnected() {
-        if (googleApiClient == null) {
-            googleApiClient = new GoogleApiClient.Builder(reactContext)
-                    .addApi(Drive.API)
-                    .addScope(Drive.SCOPE_FILE)
-                    .addScope(Drive.SCOPE_APPFOLDER)
-                    .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
-                        @Override
-                        public void onConnected(@Nullable Bundle bundle) {
-                            Log.i(TAG, "Google client API connected");
-                        }
-
-                        @Override
-                        public void onConnectionSuspended(int i) {
-                            //what to do here??
-                            Log.w(TAG, "Google client API suspended: " + i);
-                        }
-                    })
-                    .addOnConnectionFailedListener(this)
-                    .build();
-
-        }
-        return googleApiClient;
     }
 
     @Nullable
@@ -409,8 +340,169 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
         }
     }
 
+    @NonNull
+    private void connect(GoogleApiClient.ConnectionCallbacks listener) {
+        if (googleApiClient == null) {
+            synchronized (this) {
+                googleApiClient = new GoogleApiClient.Builder(reactContext)
+                        .addApi(Drive.API)
+                        .addScope(Drive.SCOPE_FILE)
+                        .addScope(Drive.SCOPE_APPFOLDER)
+                        .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
+                            @Override
+                            public void onConnected(@Nullable Bundle bundle) {
+                                Log.i(TAG, "Google client API connected");
+                            }
+
+                            @Override
+                            public void onConnectionSuspended(int i) {
+                                //what to do here??
+                                Log.w(TAG, "Google client API suspended: " + i);
+                            }
+                        })
+                        .addOnConnectionFailedListener(this)
+                        .build();
+            }
+        }
+
+        this.googleApiClient.registerConnectionCallbacks(listener);
+        this.googleApiClient.connect();
+    }
+
     @Override
     public String getName() {
         return "RNCloudFs";
+    }
+
+    private class ListFilesTask implements GoogleApiClient.ConnectionCallbacks {
+        private final boolean useDocumentsFolder;
+        private final String path;
+        private final Promise promise;
+
+        public ListFilesTask(boolean useDocumentsFolder, String path, Promise promise) {
+            this.useDocumentsFolder = useDocumentsFolder;
+            this.path = path;
+            this.promise = promise;
+        }
+
+        @Override
+        public void onConnected(@Nullable Bundle bundle) {
+            final GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(RNCloudFsModule.this.googleApiClient, reactContext);
+
+            AsyncTask.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        WritableMap data = googleDriveApiClient.listFiles(useDocumentsFolder, resolve(path));
+                        promise.resolve(data);
+                    } catch (Exception e) {
+                        promise.reject("error", e);
+                    }
+                }
+            });
+
+            googleDriveApiClient.unregisterListener(this);
+        }
+
+        @Override
+        public void onConnectionSuspended(int i) {
+            Log.w(TAG, "Google client API suspended: " + i);
+        }
+    }
+
+    private class CreateFileTask implements GoogleApiClient.ConnectionCallbacks {
+        private final String path;
+        private final Promise promise;
+        private final boolean useDocumentsFolder;
+        private final String content;
+
+        public CreateFileTask(String path, Promise promise, boolean useDocumentsFolder, String content) {
+            this.path = path;
+            this.promise = promise;
+            this.useDocumentsFolder = useDocumentsFolder;
+            this.content = content;
+        }
+
+        @Override
+        public void onConnected(@Nullable Bundle bundle) {
+            final GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(RNCloudFsModule.this.googleApiClient, reactContext);
+
+            AsyncTask.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+
+                        List<String> pathParts = resolve(path);
+                        if (pathParts.size() == 0) {
+                            promise.reject("error", "no filename specified");
+                            return;
+                        }
+
+                        DriveFolder parentFolder = useDocumentsFolder ? googleDriveApiClient.documentsFolder() : googleDriveApiClient.appFolder();
+                        if (pathParts.size() > 1) {
+                            List<String> parentDirs = pathParts.subList(0, pathParts.size() - 1);
+                            parentFolder = googleDriveApiClient.createFolders(parentFolder, parentDirs);
+                        }
+
+                        String filename = pathParts.get(pathParts.size() - 1);
+
+                        String outputFilename = googleDriveApiClient.createFile(parentFolder, new InputDataSource() {
+                            @Override
+                            public void copyToOutputStream(OutputStream output) throws IOException {
+                                output.write(content.getBytes("UTF-8"));
+                            }
+                        }, filename);
+
+                        promise.resolve(outputFilename);
+                    } catch (Exception e) {
+                        promise.reject("error", e);
+                    }
+
+                }
+            });
+
+            googleDriveApiClient.unregisterListener(this);
+        }
+
+        @Override
+        public void onConnectionSuspended(int i) {
+            Log.w(TAG, "Google client API suspended: " + i);
+        }
+    }
+
+    private class FileExistsTask implements GoogleApiClient.ConnectionCallbacks {
+        private final boolean useDocumentsFolder;
+        private final String path;
+        private final Promise promise;
+
+        public FileExistsTask(boolean useDocumentsFolder, String path, Promise promise) {
+            this.useDocumentsFolder = useDocumentsFolder;
+            this.path = path;
+            this.promise = promise;
+        }
+
+        @Override
+        public void onConnected(@Nullable Bundle bundle) {
+            final GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(RNCloudFsModule.this.googleApiClient, reactContext);
+
+            AsyncTask.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        boolean fileExists = googleDriveApiClient.fileExists(useDocumentsFolder, resolve(path));
+                        promise.resolve(fileExists);
+                    } catch (Exception e) {
+                        promise.reject("error", e);
+                    }
+                }
+            });
+
+            googleDriveApiClient.unregisterListener(this);
+        }
+
+        @Override
+        public void onConnectionSuspended(int i) {
+            Log.w(TAG, "Google client API suspended: " + i);
+        }
     }
 }

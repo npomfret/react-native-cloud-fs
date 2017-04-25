@@ -166,15 +166,19 @@ public class GoogleDriveApiClient {
         }
     }
 
+    public void unregisterListener(GoogleApiClient.ConnectionCallbacks callbacks) {
+        googleApiClient.unregisterConnectionCallbacks(callbacks);
+    }
+
     private interface FileVisitor {
         void fileMetadata(Metadata metadata);
     }
 
-    public Result createFile(DriveFolder driveFolder, RNCloudFsModule.InputDataSource input, String filename) throws IOException {
+    public String createFile(DriveFolder driveFolder, RNCloudFsModule.InputDataSource input, String filename) throws IOException {
         return createFile(driveFolder, input, filename, null);
     }
 
-    public Result createFile(DriveFolder driveFolder, RNCloudFsModule.InputDataSource input, String filename, String mimeType) throws IOException {
+    public String createFile(DriveFolder driveFolder, RNCloudFsModule.InputDataSource input, String filename, String mimeType) throws IOException {
         int count = 1;
 
         String uniqueFilename = filename;
@@ -184,13 +188,13 @@ public class GoogleDriveApiClient {
             count++;
         }
 
-        DriveApi.DriveContentsResult result = Drive.DriveApi.newDriveContents(googleApiClient).await();
+        DriveApi.DriveContentsResult driveContentsResult = Drive.DriveApi.newDriveContents(googleApiClient).await();
 
-        if (!result.getStatus().isSuccess()) {
-            return result;
+        if (!driveContentsResult.getStatus().isSuccess()) {
+            throw new IllegalStateException("cannot create file");
         }
 
-        DriveContents driveContents = result.getDriveContents();
+        DriveContents driveContents = driveContentsResult.getDriveContents();
         OutputStream outputStream = driveContents.getOutputStream();
         input.copyToOutputStream(outputStream);
         outputStream.close();
@@ -203,8 +207,13 @@ public class GoogleDriveApiClient {
         }
 
         DriveFolder.DriveFileResult driveFileResult = driveFolder.createFile(googleApiClient, builder.build(), driveContents).await();
+
+        if (!driveFileResult.getStatus().isSuccess()) {
+            throw new IllegalStateException("cannot create file");
+        }
+
         Log.i(TAG, "Created a file '" + uniqueFilename);
-        return driveFileResult;
+        return uniqueFilename;
     }
 
     public boolean fileExists(DriveFolder driveFolder, String filename) {
@@ -242,7 +251,6 @@ public class GoogleDriveApiClient {
                 file.putBoolean("isFile", !metadata.isFolder());
                 file.putString("name", metadata.getTitle());
                 file.putString("lastModified", simpleDateFormat.format(metadata.getModifiedDate()));
-                file.putString("path", metadata.getDriveId().toString());
                 file.putInt("size", (int) metadata.getFileSize());
 
                 files.pushMap(file);
