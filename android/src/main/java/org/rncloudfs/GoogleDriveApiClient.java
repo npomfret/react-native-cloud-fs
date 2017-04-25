@@ -1,10 +1,13 @@
 package org.rncloudfs;
 
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
@@ -23,18 +26,17 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.rncloudfs.RNCloudFsModule.TAG;
 
 public class GoogleDriveApiClient {
     private final GoogleApiClient googleApiClient;
+    private ReactApplicationContext reactContext;
 
-    public GoogleDriveApiClient(GoogleApiClient googleApiClient) {
+    public GoogleDriveApiClient(GoogleApiClient googleApiClient, ReactApplicationContext reactContext) {
         this.googleApiClient = googleApiClient;
-    }
-
-    public DriveFolder documentsFolder() {
-        return Drive.DriveApi.getRootFolder(googleApiClient);
+        this.reactContext = reactContext;
     }
 
     //see https://developers.google.com/drive/android/appfolder
@@ -42,7 +44,30 @@ public class GoogleDriveApiClient {
         return Drive.DriveApi.getAppFolder(googleApiClient);
     }
 
-    public DriveFolder.DriveFolderResult createFolder(DriveFolder parentFolder, MetadataChangeSet changeSet) {
+    public synchronized DriveFolder documentsFolder() {
+        DriveFolder rootFolder = Drive.DriveApi.getRootFolder(googleApiClient);
+        String applicationName = getApplicationName(reactContext);
+
+        if(fileExists(rootFolder, applicationName)) {
+            return folder(rootFolder, applicationName);
+        } else {
+            DriveFolder.DriveFolderResult folder = createFolder(rootFolder, applicationName);
+            return folder.getDriveFolder();
+        }
+    }
+
+    private static String getApplicationName(Context context) {
+        ApplicationInfo applicationInfo = context.getApplicationInfo();
+        int stringId = applicationInfo.labelRes;
+        return stringId == 0 ? applicationInfo.nonLocalizedLabel.toString() : context.getString(stringId);
+    }
+
+    private DriveFolder.DriveFolderResult createFolder(DriveFolder parentFolder, String name) {
+        MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
+                .setTitle(name)
+                .build();
+
+        Log.i(TAG, "creating folder: " + name);
         return parentFolder.createFolder(googleApiClient, changeSet).await();
     }
 
@@ -61,7 +86,7 @@ public class GoogleDriveApiClient {
         return null;
     }
 
-    public void listFiles(DriveFolder parentFolder, List<String> pathParts, FileVisitor fileVisitor) {
+    private void listFiles(DriveFolder parentFolder, List<String> pathParts, FileVisitor fileVisitor) throws NotFoundException {
         if (pathParts.isEmpty()) {
             listFiles(parentFolder, fileVisitor);
         } else {
@@ -76,14 +101,14 @@ public class GoogleDriveApiClient {
                     }
                 }
 
-                throw new IllegalStateException("not found: " + pathName);
+                throw new NotFoundException(pathName);
             } finally {
                 childrenBuffer.release();
             }
         }
     }
 
-    public void listFiles(DriveFolder folder, FileVisitor fileVisitor) {
+    private void listFiles(DriveFolder folder, FileVisitor fileVisitor) {
         DriveApi.MetadataBufferResult childrenBuffer = folder.listChildren(googleApiClient).await();
         try {
             for (Metadata metadata : childrenBuffer.getMetadataBuffer()) {
@@ -103,11 +128,7 @@ public class GoogleDriveApiClient {
         DriveFolder folder = folder(parentFolder, name);
 
         if (folder == null) {
-            MetadataChangeSet changeSet = new MetadataChangeSet.Builder()
-                    .setTitle(name)
-                    .build();
-
-            DriveFolder.DriveFolderResult result = createFolder(parentFolder, changeSet);
+            DriveFolder.DriveFolderResult result = createFolder(parentFolder, name);
 
             Log.i(TAG, "Created folder '" + name + "'");
 
@@ -116,6 +137,32 @@ public class GoogleDriveApiClient {
             Log.d(TAG, "Folder already exists '" + name + "'");
 
             return createFolders(folder, pathParts);
+        }
+    }
+
+    public boolean fileExists(boolean useDocumentsFolder, List<String> pathParts) {
+        List<String> parentDirs = pathParts.size() > 1 ? pathParts.subList(0, pathParts.size() - 2) : new ArrayList<String>();
+        final String filename = pathParts.get(pathParts.size() - 1);
+
+        DriveFolder rootFolder = useDocumentsFolder ? documentsFolder() : appFolder();
+
+        final AtomicBoolean found = new AtomicBoolean(false);
+
+        try {
+            listFiles(rootFolder, parentDirs, new FileVisitor() {
+                @Override
+                public void fileMetadata(Metadata metadata) {
+                    if(!found.get()) {
+                        String title = metadata.getTitle();
+                        if(title.equals(filename))
+                            found.set(true);
+                    }
+                }
+            });
+
+            return found.get();
+        } catch (NotFoundException e) {
+            return false;
         }
     }
 
@@ -131,7 +178,7 @@ public class GoogleDriveApiClient {
         int count = 1;
 
         String uniqueFilename = filename;
-        while (fileExistsIn(driveFolder, uniqueFilename)) {
+        while (fileExists(driveFolder, uniqueFilename)) {
             Log.w(TAG, "item already at location: " + filename);
             uniqueFilename = count + "." + filename;
             count++;
@@ -160,7 +207,7 @@ public class GoogleDriveApiClient {
         return driveFileResult;
     }
 
-    public boolean fileExistsIn(DriveFolder driveFolder, String filename) {
+    public boolean fileExists(DriveFolder driveFolder, String filename) {
         DriveApi.MetadataBufferResult childrenBuffer = driveFolder.listChildren(googleApiClient).await();
         try {
             for (Metadata metadata : childrenBuffer.getMetadataBuffer()) {
@@ -173,7 +220,7 @@ public class GoogleDriveApiClient {
         }
     }
 
-    public WritableMap listFiles(boolean useDocumentsFolder, List<String> paths) {
+    public WritableMap listFiles(boolean useDocumentsFolder, List<String> paths) throws NotFoundException {
         WritableMap data = new WritableNativeMap();
         data.putString("path", TextUtils.join("/", paths));
 
@@ -220,5 +267,11 @@ public class GoogleDriveApiClient {
             }
         }
         return names;
+    }
+
+    private static class NotFoundException extends Exception {
+        public NotFoundException(String pathName) {
+            super("not found: " + pathName);
+        }
     }
 }

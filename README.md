@@ -10,6 +10,28 @@ A react-native library for reading and writing files to _iCloud Drive_ (iOS) and
 import RNCloudFs from 'react-native-cloud-fs';
 ```
 
+### fileExists (options)
+Returns a promise which when resolved returns a boolean value indicating if the specified path already exists.
+
+```javascript
+const destinationPath = "foo-bar/docs/info.pdf";
+const scope = 'visible';
+
+RNCloudFs.fileExists({
+  targetPath: destinationPath, 
+  scope: scope
+})
+  .then((exists) => {
+    console.log(exists ? "this file exists" : "this file does not exist");
+  })
+  .catch((err) => {
+    console.warn("it failed", err);
+  })
+```
+_targetPath_: a path
+
+_scope_: determines if the user-visible documents (`visible`) or the app-visible documents (`hidden`) are searched for the specified path
+
 ### copyToCloud (options)
 Copies the content of a file (or uri) to the target file system.  The files will appear in a either a user visible 
 directory, or a dectory that only the app can see.  The directory is named after `destinationPath`.  The directory 
@@ -43,7 +65,7 @@ _sourceUri_: object with any uri or an **absolute** file path and optional http 
  * `{uri: 'content://media/external/images/media/296'}` (android only)
  * `{uri: 'assets-library://asset/asset.JPG?id=106E99A1-4F6A-45A2-B320-B0AD4A8E8473&ext=JPG'}` (iOS only)
  
-_destinationPath_: a **relative** path including a filename under which the file will be placed, e.g:
+_targetPath_: a **relative** path including a filename under which the file will be placed, e.g:
  * `my-cloud-text-file.txt`
  * `foo/bar/my-cloud-text-file.txt`
  
@@ -70,6 +92,6 @@ RNCloudFs.listFiles({targetPath: path, scope: scope})
   })
 ```
 
-_path_: a path representing a folder to list files from
+_targetPath_: a path representing a folder to list files from
 
 _scope_: a string to specify if the files are the user-visible documents (`visible`) or the app-visible documents (`hidden`)

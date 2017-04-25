@@ -5,7 +5,6 @@
 ## API
 
  * send event when the files change
- * add method: `exists`
  * add method: `moveFile` / `renameFile`
  * add method: `createCouldDirectory`
  * add method: `copyFromCloud`

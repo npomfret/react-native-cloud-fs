@@ -83,7 +83,7 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 GoogleApiClient googleApiClient = onClientConnected();
                 googleApiClient.blockingConnect();
 
-                GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(googleApiClient);
+                GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(googleApiClient, reactContext);
                 try {
                     List<String> pathParts = resolve(path);
                     if (pathParts.size() == 0) {
@@ -114,12 +114,12 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @ReactMethod
-    public void listFiles(ReadableMap options, final Promise promise) {
+    public void fileExists(ReadableMap options, final Promise promise) {
         if(!options.hasKey("targetPath")) {
             promise.reject("error", "targetPath not specified");
         }
         final String path = options.getString("targetPath");
-        final boolean useDocumentsFolder = options.hasKey("scope") ? options.getString("scope").toLowerCase().equals("visible") : true;
+        final boolean useDocumentsFolder = !options.hasKey("scope") || options.getString("scope").toLowerCase().equals("visible");
 
         AsyncTask.execute(new Runnable() {
             @Override
@@ -127,7 +127,32 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 GoogleApiClient googleApiClient = onClientConnected();
                 googleApiClient.blockingConnect();
 
-                GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(googleApiClient);
+                GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(googleApiClient, reactContext);
+                try {
+                    boolean fileExists = googleDriveApiClient.fileExists(useDocumentsFolder, resolve(path));
+                    promise.resolve(fileExists);
+                } catch (Exception e) {
+                    promise.reject("error", e);
+                }
+            }
+        });
+    }
+
+    @ReactMethod
+    public void listFiles(ReadableMap options, final Promise promise) {
+        if(!options.hasKey("targetPath")) {
+            promise.reject("error", "targetPath not specified");
+        }
+        final String path = options.getString("targetPath");
+        final boolean useDocumentsFolder = !options.hasKey("scope") || options.getString("scope").toLowerCase().equals("visible");
+
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                GoogleApiClient googleApiClient = onClientConnected();
+                googleApiClient.blockingConnect();
+
+                GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(googleApiClient, reactContext);
                 try {
                     WritableMap data = googleDriveApiClient.listFiles(useDocumentsFolder, resolve(path));
                     promise.resolve(data);
@@ -180,17 +205,15 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 actualMimeType = null;
             }
 
-            String folder = getApplicationName(reactContext) + "/" + destinationPath;
-
             GoogleApiClient googleApiClient = onClientConnected();
             googleApiClient.blockingConnect();
 
             // needs to be an async task because it may do some network access
             CopyToGoogleDriveTask task = new CopyToGoogleDriveTask(
-                    folder,
+                    destinationPath,
                     actualMimeType,
                     promise,
-                    new GoogleDriveApiClient(googleApiClient),
+                    new GoogleDriveApiClient(googleApiClient, reactContext),
                     useDocumentsFolder
             );
 
@@ -224,12 +247,6 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
 
         }
         return googleApiClient;
-    }
-
-    private static String getApplicationName(Context context) {
-        ApplicationInfo applicationInfo = context.getApplicationInfo();
-        int stringId = applicationInfo.labelRes;
-        return stringId == 0 ? applicationInfo.nonLocalizedLabel.toString() : context.getString(stringId);
     }
 
     @Nullable
