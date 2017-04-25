@@ -8,7 +8,6 @@ import android.util.Log;
 import com.facebook.react.bridge.Promise;
 import com.google.android.gms.common.api.Result;
 import com.google.android.gms.drive.DriveFolder;
-import com.google.android.gms.drive.DriveId;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,12 +21,14 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
     private final String mimeType;
     private final Promise promise;
     private final GoogleDriveApiClient googleApiClient;
+    private final boolean useDocumentsFolder;
 
-    public CopyToGoogleDriveTask(String outputPath, @Nullable String mimeType, Promise promise, GoogleDriveApiClient googleDriveApiClient) {
+    public CopyToGoogleDriveTask(String outputPath, @Nullable String mimeType, Promise promise, GoogleDriveApiClient googleDriveApiClient, boolean useDocumentsFolder) {
         this.outputPath = outputPath;
         this.mimeType = mimeType;
         this.promise = promise;
         this.googleApiClient = googleDriveApiClient;
+        this.useDocumentsFolder = useDocumentsFolder;
     }
 
     @Override
@@ -36,7 +37,7 @@ public class CopyToGoogleDriveTask extends AsyncTask<RNCloudFsModule.SourceUri, 
 
         RNCloudFsModule.SourceUri sourceUri = params[0];
         try {
-            DriveFolder rootFolder = googleApiClient.rootFolder();
+            DriveFolder rootFolder = useDocumentsFolder ? googleApiClient.documentsFolder() : googleApiClient.appFolder();
             createFileInFolders(rootFolder, pathParts, sourceUri);
         } catch (Exception e) {
             Log.e(TAG, "Failed to write " + outputPath, e);

@@ -11,7 +11,6 @@ import android.content.pm.ApplicationInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
@@ -25,7 +24,6 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.ReadableMapKeySetIterator;
 import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.bridge.WritableNativeMap;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -64,9 +62,20 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @ReactMethod
-    public void createFile(final String path, final String content, final Promise promise) {
+    public void createFile(ReadableMap options, final Promise promise) {
         GoogleApiClient googleApiClient = onClientConnected();
         googleApiClient.blockingConnect();
+        if(!options.hasKey("targetPath")) {
+            promise.reject("error", "targetPath not specified");
+        }
+        final String path = options.getString("targetPath");
+
+        if(!options.hasKey("content")) {
+            promise.reject("error", "content not specified");
+        }
+        final String content = options.getString("content");
+
+        final boolean useDocumentsFolder = options.hasKey("scope") ? options.getString("scope").toLowerCase().equals("visible") : true;
 
         AsyncTask.execute(new Runnable() {
             @Override
@@ -82,7 +91,7 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                         return;
                     }
 
-                    DriveFolder parentFolder = googleDriveApiClient.rootFolder();
+                    DriveFolder parentFolder = useDocumentsFolder ? googleDriveApiClient.documentsFolder() : googleDriveApiClient.appFolder();
                     if (pathParts.size() > 1) {
                         List<String> parentDirs = pathParts.subList(0, pathParts.size() - 1);
                         parentFolder = googleDriveApiClient.createFolders(parentFolder, parentDirs);
@@ -105,7 +114,13 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @ReactMethod
-    public void listFiles(final String path, final Promise promise) {
+    public void listFiles(ReadableMap options, final Promise promise) {
+        if(!options.hasKey("targetPath")) {
+            promise.reject("error", "targetPath not specified");
+        }
+        final String path = options.getString("targetPath");
+        final boolean useDocumentsFolder = options.hasKey("scope") ? options.getString("scope").toLowerCase().equals("visible") : true;
+
         AsyncTask.execute(new Runnable() {
             @Override
             public void run() {
@@ -114,7 +129,7 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
 
                 GoogleDriveApiClient googleDriveApiClient = new GoogleDriveApiClient(googleApiClient);
                 try {
-                    WritableMap data = googleDriveApiClient.listFiles(resolve(path));
+                    WritableMap data = googleDriveApiClient.listFiles(useDocumentsFolder, resolve(path));
                     promise.resolve(data);
                 } catch (Exception e) {
                     promise.reject("error", e);
@@ -124,15 +139,15 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     /**
-     * Copy the source into the google drive database using
-     *
-     * @param source          contains a string keyed by 'uri' (or 'path') along with an optional map ('http-headers') containing http headers
-     * @param destinationPath a relative path under which the file will be stored
-     * @param mimeType        an optional mime-type for the database, if null a guess will be made
+     * Copy the source into the google drive database
      */
     @ReactMethod
-    public void copyToCloud(ReadableMap source, String destinationPath, @Nullable String mimeType, Promise promise) {
+    public void copyToCloud(ReadableMap options, Promise promise) {
         try {
+            if(!options.hasKey("sourcePath")) {
+                promise.reject("error", "sourcePath not specified");
+            }
+            ReadableMap source = options.getMap("sourcePath");
             String uriOrPath = source.hasKey("uri") ? source.getString("uri") : null;
 
             if (uriOrPath == null) {
@@ -143,6 +158,18 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 promise.reject("no path", "no source uri or path was specified");
                 return;
             }
+
+            if(!options.hasKey("targetPath")) {
+                promise.reject("error", "targetPath not specified");
+            }
+            String destinationPath = options.getString("targetPath");
+
+            String mimeType = null;
+            if(options.hasKey("mimetype")) {
+                mimeType = options.getString("mimetype");
+            }
+
+            final boolean useDocumentsFolder = options.hasKey("scope") ? options.getString("scope").toLowerCase().equals("visible") : true;
 
             SourceUri sourceUri = new SourceUri(uriOrPath, source.hasKey("http-headers") ? source.getMap("http-headers") : null);
 
@@ -163,7 +190,8 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                     folder,
                     actualMimeType,
                     promise,
-                    new GoogleDriveApiClient(googleApiClient)
+                    new GoogleDriveApiClient(googleApiClient),
+                    useDocumentsFolder
             );
 
             task.execute(sourceUri);

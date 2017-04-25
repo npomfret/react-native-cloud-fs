@@ -13,9 +13,7 @@ import com.google.android.gms.common.api.Result;
 import com.google.android.gms.drive.Drive;
 import com.google.android.gms.drive.DriveApi;
 import com.google.android.gms.drive.DriveContents;
-import com.google.android.gms.drive.DriveFile;
 import com.google.android.gms.drive.DriveFolder;
-import com.google.android.gms.drive.DriveId;
 import com.google.android.gms.drive.Metadata;
 import com.google.android.gms.drive.MetadataChangeSet;
 
@@ -35,8 +33,13 @@ public class GoogleDriveApiClient {
         this.googleApiClient = googleApiClient;
     }
 
-    public DriveFolder rootFolder() {
+    public DriveFolder documentsFolder() {
         return Drive.DriveApi.getRootFolder(googleApiClient);
+    }
+
+    //see https://developers.google.com/drive/android/appfolder
+    public DriveFolder appFolder() {
+        return Drive.DriveApi.getAppFolder(googleApiClient);
     }
 
     public DriveFolder.DriveFolderResult createFolder(DriveFolder parentFolder, MetadataChangeSet changeSet) {
@@ -170,7 +173,7 @@ public class GoogleDriveApiClient {
         }
     }
 
-    public WritableMap listFiles(List<String> paths) {
+    public WritableMap listFiles(boolean useDocumentsFolder, List<String> paths) {
         WritableMap data = new WritableNativeMap();
         data.putString("path", TextUtils.join("/", paths));
 
@@ -178,7 +181,9 @@ public class GoogleDriveApiClient {
 
         final SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.getDefault());
 
-        listFiles(rootFolder(), paths, new FileVisitor() {
+        DriveFolder parentFolder = useDocumentsFolder ? documentsFolder() : appFolder();
+
+        listFiles(parentFolder, paths, new FileVisitor() {
             @Override
             public void fileMetadata(Metadata metadata) {
                 if (!metadata.isDataValid())
