@@ -5,13 +5,15 @@
 #import "RCTEventDispatcher.h"
 #import "RCTUtils.h"
 #import <AssetsLibrary/AssetsLibrary.h>
+#import "RCTLog.h"
 
 @implementation RNCloudFs
 
 - (dispatch_queue_t)methodQueue
 {
-    return dispatch_get_main_queue();
+    return dispatch_queue_create("RNCloudFs.queue", DISPATCH_QUEUE_SERIAL);
 }
+
 RCT_EXPORT_MODULE()
 
 //see https://developer.apple.com/library/content/documentation/General/Conceptual/iCloudDesignGuide/Chapters/iCloudFundametals.html
@@ -25,18 +27,15 @@ RCT_EXPORT_METHOD(createFile:(NSDictionary *) options
     NSString *scope = [options objectForKey:@"scope"];
     bool documentsFolder = !scope || [scope caseInsensitiveCompare:@"visible"] == NSOrderedSame;
     
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-
-        NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
-
-        NSError *error;
-        [content writeToFile:tempFile atomically:YES encoding:NSUTF8StringEncoding error:&error];
-        if(error) {
-            return reject(@"error", error.description, nil);
-        }
-        
-        [self moveToICloudDirectory:documentsFolder :tempFile :destinationPath :resolve :reject];
-    });
+    NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:[[NSUUID UUID] UUIDString]];
+    
+    NSError *error;
+    [content writeToFile:tempFile atomically:YES encoding:NSUTF8StringEncoding error:&error];
+    if(error) {
+        return reject(@"error", error.description, nil);
+    }
+    
+    [self moveToICloudDirectory:documentsFolder :tempFile :destinationPath :resolve :reject];
 }
 
 RCT_EXPORT_METHOD(fileExists:(NSDictionary *)options
@@ -47,98 +46,91 @@ RCT_EXPORT_METHOD(fileExists:(NSDictionary *)options
     NSString *scope = [options objectForKey:@"scope"];
     bool documentsFolder = !scope || [scope caseInsensitiveCompare:@"visible"] == NSOrderedSame;
     
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        
-        NSFileManager* fileManager = [NSFileManager defaultManager];
-        
-        NSURL *ubiquityURL = documentsFolder ? [self icloudDocumentsDirectory] : [self icloudDirectory];
-        
-        if (ubiquityURL) {
-            NSURL* dir = [ubiquityURL URLByAppendingPathComponent:destinationPath];
-            NSString* dirPath = [dir.path stringByStandardizingPath];
-            
-            bool exists = [fileManager fileExistsAtPath:dirPath];
-            
-            return resolve(@(exists));
-        } else {
-            NSLog(@"Could not retrieve a ubiquityURL");
-            return reject(@"error", [NSString stringWithFormat:@"could access iCloud drive '%@'", destinationPath], nil);
-        }
-    });
-}
+    NSFileManager* fileManager = [NSFileManager defaultManager];
     
-RCT_EXPORT_METHOD(listFiles:(NSDictionary *)options
-                      resolver:(RCTPromiseResolveBlock)resolve
-                      rejecter:(RCTPromiseRejectBlock)reject) {
+    NSURL *ubiquityURL = documentsFolder ? [self icloudDocumentsDirectory] : [self icloudDirectory];
+    
+    if (ubiquityURL) {
+        NSURL* dir = [ubiquityURL URLByAppendingPathComponent:destinationPath];
+        NSString* dirPath = [dir.path stringByStandardizingPath];
+        
+        bool exists = [fileManager fileExistsAtPath:dirPath];
+        
+        return resolve(@(exists));
+    } else {
+        RCTLogTrace(@"Could not retrieve a ubiquityURL");
+        return reject(@"error", [NSString stringWithFormat:@"could access iCloud drive '%@'", destinationPath], nil);
+    }
+}
 
+RCT_EXPORT_METHOD(listFiles:(NSDictionary *)options
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    
     NSString *destinationPath = [options objectForKey:@"targetPath"];
     NSString *scope = [options objectForKey:@"scope"];
     bool documentsFolder = !scope || [scope caseInsensitiveCompare:@"visible"] == NSOrderedSame;
-
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    
+    NSFileManager* fileManager = [NSFileManager defaultManager];
+    
+    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+    [dateFormatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZZZ"];
+    
+    NSURL *ubiquityURL = documentsFolder ? [self icloudDocumentsDirectory] : [self icloudDirectory];
+    
+    if (ubiquityURL) {
+        NSURL* dir = [ubiquityURL URLByAppendingPathComponent:destinationPath];
+        NSString* dirPath = [dir.path stringByStandardizingPath];
         
-        NSFileManager* fileManager = [NSFileManager defaultManager];
-
-        NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
-        [dateFormatter setDateFormat:@"yyyy-MM-dd'T'HH:mm:ssZZZ"];
+        NSMutableArray<NSDictionary *> *fileData = [NSMutableArray new];
         
-        NSURL *ubiquityURL = documentsFolder ? [self icloudDocumentsDirectory] : [self icloudDirectory];
+        NSError *error = nil;
+        NSString *path = [dir path];
+        NSArray *contents = [fileManager contentsOfDirectoryAtPath:path error:&error];
+        if(error) {
+            return reject(@"error", error.description, nil);
+        }
         
-        if (ubiquityURL) {
-            NSURL* dir = [ubiquityURL URLByAppendingPathComponent:destinationPath];
-            NSString* dirPath = [dir.path stringByStandardizingPath];
-            
-            NSMutableArray<NSDictionary *> *fileData = [NSMutableArray new];
+        [contents enumerateObjectsUsingBlock:^(id object, NSUInteger idx, BOOL *stop) {
+            NSString *path = [dirPath stringByAppendingPathComponent:object];
             
             NSError *error = nil;
-            NSString *path = [dir path];
-            NSArray *contents = [fileManager contentsOfDirectoryAtPath:path error:&error];
+            NSDictionary *attributes = [fileManager attributesOfItemAtPath:path error:&error];
             if(error) {
-                return reject(@"error", error.description, nil);
+                RCTLogTrace(@"problem getting attributes for %@", path);
+                //skip this one
             }
             
-            [contents enumerateObjectsUsingBlock:^(id object, NSUInteger idx, BOOL *stop) {
-                NSString *path = [dirPath stringByAppendingPathComponent:object];
-                
-                NSError *error = nil;
-                NSDictionary *attributes = [fileManager attributesOfItemAtPath:path error:&error];
-                if(error) {
-                    NSLog(@"problem getting attributes for %@", path);
-                    //skip this one
-                }
-                
-                NSFileAttributeType type = [attributes objectForKey:NSFileType];
-                
-                bool isDir = type == NSFileTypeDirectory;
-                bool isFile = type == NSFileTypeRegular;
-                
-                if(!isDir && !isFile)
-                    return;
-                
-                NSDate* modDate = [attributes objectForKey:NSFileModificationDate];
-                
-                [fileData addObject:@{
-                                    @"name": object,
-                                    @"path": path,
-                                    @"size": [attributes objectForKey:NSFileSize],
-                                    @"lastModified": [dateFormatter stringFromDate:modDate],
-                                    @"isDirectory": @(isDir),
-                                    @"isFile": @(isFile)
-                                    }];
-            }];
+            NSFileAttributeType type = [attributes objectForKey:NSFileType];
             
-            if (error) {
-                return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", destinationPath], error);
-            }
+            bool isDir = type == NSFileTypeDirectory;
+            bool isFile = type == NSFileTypeRegular;
             
-            return resolve(@{@"files": fileData, @"path": [dirPath stringByReplacingOccurrencesOfString:[ubiquityURL path] withString:@"."]});
+            if(!isDir && !isFile)
+                return;
             
-        } else {
-            NSLog(@"Could not retrieve a ubiquityURL");
-            return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", destinationPath], nil);
+            NSDate* modDate = [attributes objectForKey:NSFileModificationDate];
+            
+            [fileData addObject:@{
+                                  @"name": object,
+                                  @"path": path,
+                                  @"size": [attributes objectForKey:NSFileSize],
+                                  @"lastModified": [dateFormatter stringFromDate:modDate],
+                                  @"isDirectory": @(isDir),
+                                  @"isFile": @(isFile)
+                                  }];
+        }];
+        
+        if (error) {
+            return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", destinationPath], error);
         }
-
-    });
+        
+        return resolve(@{@"files": fileData, @"path": [dirPath stringByReplacingOccurrencesOfString:[ubiquityURL path] withString:@"."]});
+        
+    } else {
+        NSLog(@"Could not retrieve a ubiquityURL");
+        return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", destinationPath], nil);
+    }
 }
 
 RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
@@ -150,82 +142,80 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
     NSString *destinationPath = [options objectForKey:@"targetPath"];
     NSString *scope = [options objectForKey:@"scope"];
     bool documentsFolder = !scope || [scope caseInsensitiveCompare:@"visible"] == NSOrderedSame;
-   
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSFileManager* fileManager = [NSFileManager defaultManager];
+    
+    NSFileManager* fileManager = [NSFileManager defaultManager];
+    
+    NSString *sourceUri = [source objectForKey:@"uri"];
+    if(!sourceUri) {
+        sourceUri = [source objectForKey:@"path"];
+    }
+    
+    if([sourceUri hasPrefix:@"assets-library"]){
+        ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
         
-        NSString *sourceUri = [source objectForKey:@"uri"];
-        if(!sourceUri) {
-            sourceUri = [source objectForKey:@"path"];
-        }
-
-        if([sourceUri hasPrefix:@"assets-library"]){
-            ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
+        [library assetForURL:[NSURL URLWithString:sourceUri] resultBlock:^(ALAsset *asset) {
             
-            [library assetForURL:[NSURL URLWithString:sourceUri] resultBlock:^(ALAsset *asset) {
-                
-                ALAssetRepresentation *rep = [asset defaultRepresentation];
-                
-                Byte *buffer = (Byte*)malloc(rep.size);
-                NSUInteger buffered = [rep getBytes:buffer fromOffset:0.0 length:rep.size error:nil];
-                NSData *data = [NSData dataWithBytesNoCopy:buffer length:buffered freeWhenDone:YES];
-                
-                if (data) {
-                    NSString *filename = [sourceUri lastPathComponent];
-                    NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
-                    [data writeToFile:tempFile atomically:YES];
-                    [self moveToICloudDirectory:documentsFolder :tempFile :destinationPath :resolve :reject];
-                } else {
-                    NSLog(@"source file does not exist %@", sourceUri);
-                    return reject(@"error", [NSString stringWithFormat:@"failed to copy asset '%@'", sourceUri], nil);
-                }
-            } failureBlock:^(NSError *error) {
-                NSLog(@"source file does not exist %@", sourceUri);
+            ALAssetRepresentation *rep = [asset defaultRepresentation];
+            
+            Byte *buffer = (Byte*)malloc(rep.size);
+            NSUInteger buffered = [rep getBytes:buffer fromOffset:0.0 length:rep.size error:nil];
+            NSData *data = [NSData dataWithBytesNoCopy:buffer length:buffered freeWhenDone:YES];
+            
+            if (data) {
+                NSString *filename = [sourceUri lastPathComponent];
+                NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+                [data writeToFile:tempFile atomically:YES];
+                [self moveToICloudDirectory:documentsFolder :tempFile :destinationPath :resolve :reject];
+            } else {
+                RCTLogTrace(@"source file does not exist %@", sourceUri);
+                return reject(@"error", [NSString stringWithFormat:@"failed to copy asset '%@'", sourceUri], nil);
+            }
+        } failureBlock:^(NSError *error) {
+            RCTLogTrace(@"source file does not exist %@", sourceUri);
+            return reject(@"error", error.description, nil);
+        }];
+    } else if ([sourceUri hasPrefix:@"file:/"] || [sourceUri hasPrefix:@"/"]) {
+        NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^file:/+" options:NSRegularExpressionCaseInsensitive error:nil];
+        NSString *modifiedSourceUri = [regex stringByReplacingMatchesInString:sourceUri options:0 range:NSMakeRange(0, [sourceUri length]) withTemplate:@"/"];
+        
+        if ([fileManager fileExistsAtPath:modifiedSourceUri isDirectory:nil]) {
+            NSURL *sourceURL = [NSURL fileURLWithPath:modifiedSourceUri];
+            
+            // todo: figure out how to *copy* to icloud drive
+            // ...setUbiquitous will move the file instead of copying it, so as a work around lets copy it to a tmp file first
+            NSString *filename = [sourceUri lastPathComponent];
+            NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+            
+            NSError *error;
+            [fileManager copyItemAtPath:[sourceURL path] toPath:tempFile error:&error];
+            if(error) {
                 return reject(@"error", error.description, nil);
-            }];
-        } else if ([sourceUri hasPrefix:@"file:/"] || [sourceUri hasPrefix:@"/"]) {
-            NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:@"^file:/+" options:NSRegularExpressionCaseInsensitive error:nil];
-            NSString *modifiedSourceUri = [regex stringByReplacingMatchesInString:sourceUri options:0 range:NSMakeRange(0, [sourceUri length]) withTemplate:@"/"];
-            
-            if ([fileManager fileExistsAtPath:modifiedSourceUri isDirectory:nil]) {
-                NSURL *sourceURL = [NSURL fileURLWithPath:modifiedSourceUri];
-                
-                // todo: figure out how to *copy* to icloud drive
-                // ...setUbiquitous will move the file instead of copying it, so as a work around lets copy it to a tmp file first
-                NSString *filename = [sourceUri lastPathComponent];
-                NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
-
-                NSError *error;
-                [fileManager copyItemAtPath:[sourceURL path] toPath:tempFile error:&error];
-                if(error) {
-                    return reject(@"error", error.description, nil);
-                }
-                
-                [self moveToICloudDirectory:documentsFolder :tempFile :destinationPath :resolve :reject];
-            } else {
-                NSLog(@"source file does not exist %@", sourceUri);
-                return reject(@"error", [NSString stringWithFormat:@"no such file or directory, open '%@'", sourceUri], nil);
             }
+            
+            [self moveToICloudDirectory:documentsFolder :tempFile :destinationPath :resolve :reject];
         } else {
-            NSURL *url = [NSURL URLWithString:sourceUri];
-            NSData *urlData = [NSData dataWithContentsOfURL:url];
-            
-            if (urlData) {
-                NSString *filename = [sourceUri lastPathComponent];
-                NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
-                [urlData writeToFile:tempFile atomically:YES];
-                [self moveToICloudDirectory:documentsFolder :tempFile :destinationPath :resolve :reject];
-            } else {
-                NSLog(@"source file does not exist %@", sourceUri);
-                return reject(@"error", [NSString stringWithFormat:@"cannot download '%@'", sourceUri], nil);
-            }
+            NSLog(@"source file does not exist %@", sourceUri);
+            return reject(@"error", [NSString stringWithFormat:@"no such file or directory, open '%@'", sourceUri], nil);
         }
-    });
+    } else {
+        NSURL *url = [NSURL URLWithString:sourceUri];
+        NSData *urlData = [NSData dataWithContentsOfURL:url];
+        
+        if (urlData) {
+            NSString *filename = [sourceUri lastPathComponent];
+            NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
+            [urlData writeToFile:tempFile atomically:YES];
+            [self moveToICloudDirectory:documentsFolder :tempFile :destinationPath :resolve :reject];
+        } else {
+            RCTLogTrace(@"source file does not exist %@", sourceUri);
+            return reject(@"error", [NSString stringWithFormat:@"cannot download '%@'", sourceUri], nil);
+        }
+    }
 }
 
 - (void) moveToICloudDirectory:(bool) documentsFolder :(NSString *)tempFile :(NSString *)destinationPath
-                                     :(RCTPromiseResolveBlock)resolver
-                                     :(RCTPromiseRejectBlock)rejecter {
+                              :(RCTPromiseResolveBlock)resolver
+                              :(RCTPromiseRejectBlock)rejecter {
     
     if(documentsFolder) {
         NSURL *ubiquityURL = [self icloudDocumentsDirectory];
@@ -237,8 +227,8 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
 }
 
 - (void) moveToICloud:(NSURL *)ubiquityURL :(NSString *)tempFile :(NSString *)destinationPath
-                                     :(RCTPromiseResolveBlock)resolver
-                                     :(RCTPromiseRejectBlock)rejecter {
+                     :(RCTPromiseResolveBlock)resolver
+                     :(RCTPromiseRejectBlock)rejecter {
     
     
     NSString * destPath = destinationPath;
@@ -246,7 +236,7 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
         destPath = [destPath substringFromIndex:1];
     }
     
-    NSLog(@"Moving file %@ to %@", tempFile, destPath);
+    RCTLogTrace(@"Moving file %@ to %@", tempFile, destPath);
     
     NSFileManager* fileManager = [NSFileManager defaultManager];
     
@@ -265,7 +255,7 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
             count++;
         }
         
-        NSLog(@"Target file: %@", uniqueFile.path);
+        RCTLogTrace(@"Target file: %@", uniqueFile.path);
         
         if (![fileManager fileExistsAtPath:dir.path]) {
             [fileManager createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
@@ -274,7 +264,6 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
         NSError *error;
         [fileManager setUbiquitous:YES itemAtURL:[NSURL fileURLWithPath:tempFile] destinationURL:uniqueFile error:&error];
         if(error) {
-            NSLog(@"Error occurred: %@", error);
             return rejecter(@"error", error.description, nil);
         }
         
@@ -285,7 +274,6 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
         NSError *error;
         [fileManager removeItemAtPath:tempFile error:&error];
         
-        NSLog(@"Could not retrieve a ubiquityURL");
         return rejecter(@"error", [NSString stringWithFormat:@"could not copy '%@' to iCloud drive", tempFile], nil);
     }
 }
@@ -296,7 +284,7 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
     
     if (rootDirectory) {
         if (![fileManager fileExistsAtPath:rootDirectory.path isDirectory:nil]) {
-            NSLog(@"Creating documents directory: %@", rootDirectory.path);
+            RCTLogTrace(@"Creating documents directory: %@", rootDirectory.path);
             [fileManager createDirectoryAtURL:rootDirectory withIntermediateDirectories:YES attributes:nil error:nil];
         }
     }
