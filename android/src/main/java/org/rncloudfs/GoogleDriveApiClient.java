@@ -250,6 +250,7 @@ public class GoogleDriveApiClient {
                 file.putBoolean("isDirectory", metadata.isFolder());
                 file.putBoolean("isFile", !metadata.isFolder());
                 file.putString("name", metadata.getTitle());
+                file.putString("uri", metadata.getAlternateLink());
                 file.putString("lastModified", simpleDateFormat.format(metadata.getModifiedDate()));
                 file.putInt("size", (int) metadata.getFileSize());
 
