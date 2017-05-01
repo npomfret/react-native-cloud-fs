@@ -18,6 +18,7 @@ import com.google.android.gms.drive.DriveApi;
 import com.google.android.gms.drive.DriveContents;
 import com.google.android.gms.drive.DriveFolder;
 import com.google.android.gms.drive.Metadata;
+import com.google.android.gms.drive.MetadataBuffer;
 import com.google.android.gms.drive.MetadataChangeSet;
 
 import java.io.IOException;
@@ -86,17 +87,42 @@ public class GoogleDriveApiClient {
         return null;
     }
 
-    private void listFiles(DriveFolder parentFolder, List<String> pathParts, FileVisitor fileVisitor) throws NotFoundException {
+    private String listFiles(DriveFolder folder, List<String> pathParts, FileVisitor fileVisitor) throws NotFoundException {
+        List<String> currentPath = new ArrayList<>();
+        currentPath.add(".");
+        listFiles(currentPath, folder, pathParts, fileVisitor);
+        return TextUtils.join("/", currentPath);
+    }
+
+    private void listFiles(List<String> currentPath, DriveFolder folder, List<String> pathParts, FileVisitor fileVisitor) throws NotFoundException {
         if (pathParts.isEmpty()) {
-            listFiles(parentFolder, fileVisitor);
+            listFiles(folder, fileVisitor);
         } else {
             String pathName = pathParts.remove(0);
 
-            DriveApi.MetadataBufferResult childrenBuffer = parentFolder.listChildren(googleApiClient).await();
+            if(pathName.equals("..")) {
+                DriveApi.MetadataBufferResult result = folder.listParents(googleApiClient).await();
+                try {
+                    for (Metadata metadata : result.getMetadataBuffer()) {
+                        if(metadata.isFolder()) {
+                            currentPath.remove(currentPath.size() - 1);
+                            listFiles(currentPath, metadata.getDriveId().asDriveFolder(), pathParts, fileVisitor);
+                            return;
+                        }
+                    }
+                    throw new IllegalStateException("No parent folder");
+                } finally {
+                    result.release();
+                }
+            }
+
+            currentPath.add(pathName);
+
+            DriveApi.MetadataBufferResult childrenBuffer = folder.listChildren(googleApiClient).await();
             try {
                 for (Metadata metadata : childrenBuffer.getMetadataBuffer()) {
                     if (metadata.isFolder() && pathName.equals(metadata.getTitle())) {
-                        listFiles(metadata.getDriveId().asDriveFolder(), pathParts, fileVisitor);
+                        listFiles(currentPath, metadata.getDriveId().asDriveFolder(), pathParts, fileVisitor);
                         return;
                     }
                 }
@@ -231,7 +257,6 @@ public class GoogleDriveApiClient {
 
     public WritableMap listFiles(boolean useDocumentsFolder, List<String> paths) throws NotFoundException {
         WritableMap data = new WritableNativeMap();
-        data.putString("path", TextUtils.join("/", paths));
 
         final WritableNativeArray files = new WritableNativeArray();
 
@@ -239,7 +264,7 @@ public class GoogleDriveApiClient {
 
         DriveFolder parentFolder = useDocumentsFolder ? documentsFolder() : appFolder();
 
-        listFiles(parentFolder, paths, new FileVisitor() {
+        String path = listFiles(parentFolder, paths, new FileVisitor() {
             @Override
             public void fileMetadata(Metadata metadata) {
                 if (!metadata.isDataValid())
@@ -258,6 +283,7 @@ public class GoogleDriveApiClient {
             }
         });
 
+        data.putString("path", path);
         data.putArray("files", files);
 
         return data;
@@ -269,8 +295,6 @@ public class GoogleDriveApiClient {
         for (String pathPart : path.split("/")) {
             if (pathPart.equals(".") || pathPart.isEmpty()) {
                 //ignore
-            } else if (pathPart.equals("..")) {
-                names.remove(names.size() - 1);
             } else {
                 names.add(pathPart);
             }
