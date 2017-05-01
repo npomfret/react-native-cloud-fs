@@ -79,26 +79,38 @@ RCT_EXPORT_METHOD(listFiles:(NSDictionary *)options
     NSURL *ubiquityURL = documentsFolder ? [self icloudDocumentsDirectory] : [self icloudDirectory];
     
     if (ubiquityURL) {
-        NSURL* dir = [ubiquityURL URLByAppendingPathComponent:destinationPath];
-        NSString* dirPath = [dir.path stringByStandardizingPath];
+        NSURL* target = [ubiquityURL URLByAppendingPathComponent:destinationPath];
         
         NSMutableArray<NSDictionary *> *fileData = [NSMutableArray new];
         
         NSError *error = nil;
-        NSString *path = [dir path];
-        NSArray *contents = [fileManager contentsOfDirectoryAtPath:path error:&error];
+        
+        BOOL isDirectory;
+        [fileManager fileExistsAtPath:[target path] isDirectory:&isDirectory];
+
+        NSURL *dirPath;
+        NSArray *contents;
+        if(isDirectory) {
+            contents = [fileManager contentsOfDirectoryAtPath:[target path] error:&error];
+            dirPath = target;
+        } else {
+            contents = @[[target lastPathComponent]];
+            dirPath = [target URLByDeletingLastPathComponent];
+        }
+
         if(error) {
             return reject(@"error", error.description, nil);
         }
-        
+
         [contents enumerateObjectsUsingBlock:^(id object, NSUInteger idx, BOOL *stop) {
-            NSString *path = [dirPath stringByAppendingPathComponent:object];
+            NSURL *fileUrl = [dirPath URLByAppendingPathComponent:object];
             
-            NSError *error = nil;
-            NSDictionary *attributes = [fileManager attributesOfItemAtPath:path error:&error];
+            NSError *error;
+            NSDictionary *attributes = [fileManager attributesOfItemAtPath:[fileUrl path] error:&error];
             if(error) {
-                RCTLogTrace(@"problem getting attributes for %@", path);
+                RCTLogTrace(@"problem getting attributes for %@", [fileUrl path]);
                 //skip this one
+                return;
             }
             
             NSFileAttributeType type = [attributes objectForKey:NSFileType];
@@ -110,10 +122,13 @@ RCT_EXPORT_METHOD(listFiles:(NSDictionary *)options
                 return;
             
             NSDate* modDate = [attributes objectForKey:NSFileModificationDate];
+
+            NSURL *shareUrl = [fileManager URLForPublishingUbiquitousItemAtURL:fileUrl expirationDate:nil error:&error];
             
             [fileData addObject:@{
                                   @"name": object,
-                                  @"path": path,
+                                  @"path": [fileUrl path],
+                                  @"uri": shareUrl ? [shareUrl absoluteString] : [NSNull null],
                                   @"size": [attributes objectForKey:NSFileSize],
                                   @"lastModified": [dateFormatter stringFromDate:modDate],
                                   @"isDirectory": @(isDir),
@@ -125,7 +140,12 @@ RCT_EXPORT_METHOD(listFiles:(NSDictionary *)options
             return reject(@"error", [NSString stringWithFormat:@"could not copy to iCloud drive '%@'", destinationPath], error);
         }
         
-        return resolve(@{@"files": fileData, @"path": [dirPath stringByReplacingOccurrencesOfString:[ubiquityURL path] withString:@"."]});
+        NSString *relativePath = [[dirPath path] stringByReplacingOccurrencesOfString:[ubiquityURL path] withString:@"."];
+        
+        return resolve(@{
+                         @"files": fileData,
+                         @"path": relativePath
+                         });
         
     } else {
         NSLog(@"Could not retrieve a ubiquityURL");
