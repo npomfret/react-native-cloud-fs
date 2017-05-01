@@ -116,14 +116,19 @@ public class GoogleDriveApiClient {
                 }
             }
 
-            currentPath.add(pathName);
-
             DriveApi.MetadataBufferResult childrenBuffer = folder.listChildren(googleApiClient).await();
             try {
                 for (Metadata metadata : childrenBuffer.getMetadataBuffer()) {
-                    if (metadata.isFolder() && pathName.equals(metadata.getTitle())) {
-                        listFiles(currentPath, metadata.getDriveId().asDriveFolder(), pathParts, fileVisitor);
-                        return;
+                    String fileName = metadata.getTitle();
+                    if (pathName.equals(fileName)) {
+                        if(metadata.isFolder()) {
+                            currentPath.add(pathName);
+                            listFiles(currentPath, metadata.getDriveId().asDriveFolder(), pathParts, fileVisitor);
+                            return;
+                        } else {
+                            fileVisitor.fileMetadata(metadata);
+                            return;
+                        }
                     }
                 }
 
