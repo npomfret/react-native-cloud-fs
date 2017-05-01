@@ -156,7 +156,7 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
 
             boolean useDocumentsFolder = options.hasKey("scope") ? options.getString("scope").toLowerCase().equals("visible") : true;
 
-            SourceUri sourceUri = new SourceUri(uriOrPath, source.hasKey("http-headers") ? source.getMap("http-headers") : null);
+            SourceUri sourceUri = new SourceUri(uriOrPath, source.hasKey("headers") ? source.getMap("headers") : null);
 
             String actualMimeType;
             if (mimeType == null) {
