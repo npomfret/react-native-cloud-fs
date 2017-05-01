@@ -4,6 +4,7 @@
  
 ## API
 
+ * get user to sign into icloud: https://developer.apple.com/library/content/documentation/DataManagement/Conceptual/CloudKitQuickStart/CreatingaSchemabySavingRecords/CreatingaSchemabySavingRecords.html#//apple_ref/doc/uid/TP40014987-CH3-SW8
  * send event when the files change
  * add method: `moveFile` / `renameFile`
  * add method: `createCouldDirectory`
