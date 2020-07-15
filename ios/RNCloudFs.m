@@ -13,8 +13,6 @@
 
 @implementation RNCloudFs
 
-
-
 - (dispatch_queue_t)methodQueue
 {
     return dispatch_queue_create("RNCloudFs.queue", DISPATCH_QUEUE_SERIAL);
@@ -159,69 +157,6 @@ RCT_EXPORT_METHOD(listFiles:(NSDictionary *)options
     }
 }
 
-
-RCT_EXPORT_METHOD(getIcloudDocument:(NSString *)filename
-resolver:(RCTPromiseResolveBlock)resolver
-rejecter:(RCTPromiseRejectBlock)rejecter) {
-    __block bool resolved = NO;
-    _query = [[NSMetadataQuery alloc] init];
-    //SCOPE
-    NSURL *mobileDocumentsDirectoryURL = [[NSFileManager defaultManager] URLForUbiquityContainerIdentifier:nil];
-    [_query setSearchScopes:@[NSMetadataQueryUbiquitousDocumentsScope, NSMetadataQueryUbiquitousDataScope]];
-    //PREDICATE
-    //NSPredicate *pred = [NSPredicate predicateWithFormat: @"%K == %@", NSMetadataItemFSNameKey, filename];
-
-    NSPredicate *pred = [NSPredicate predicateWithFormat:[NSString stringWithFormat:@"%%K like \"%@*\"", [mobileDocumentsDirectoryURL path]], NSMetadataItemPathKey];
-    [_query setPredicate:pred];
-    
-
-    [[NSNotificationCenter defaultCenter] addObserverForName:
-     NSMetadataQueryDidFinishGatheringNotification
-    object:_query queue:[NSOperationQueue mainQueue]
-    usingBlock:^(NSNotification __strong *notification)
-    {
-        //FINISHED?
-        NSMetadataQuery *query = [notification object];
-        [query disableUpdates];
-        [query stopQuery];
-        for (NSMetadataItem *item in query.results) {
-            if([[item valueForAttribute:NSMetadataItemFSNameKey] isEqualToString:filename]){
-                resolved = YES;
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    NSURL *url = [item valueForAttribute:NSMetadataItemURLKey];
-                    NSData *data = [NSData dataWithContentsOfURL: url];
-                    NSString *content = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-                    return resolver(content);
-                });
-            }
-        }
-        if(!resolved){
-            return rejecter(@"error", [NSString stringWithFormat:@"item not found '%@'", filename], nil);
-        }
-    }];
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [self->_query startQuery];
-    });
-
-}
-
-RCT_EXPORT_METHOD(deleteFromCloud:(NSDictionary *)item
-resolver:(RCTPromiseResolveBlock)resolver
-rejecter:(RCTPromiseRejectBlock)rejecter) {
-   NSError *error;
-   
-    NSFileManager* fileManager = [NSFileManager defaultManager];
-    [fileManager removeItemAtPath:item[@"path"] error:&error];
-    if(error) {
-        return rejecter(@"error", error.description, nil);
-    }
-    bool result = YES;
-    return resolver(@(result));
-
-}
-
-
 RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
@@ -276,13 +211,6 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
             NSString *tempFile = [NSTemporaryDirectory() stringByAppendingPathComponent:filename];
 
             NSError *error;
-            if([fileManager fileExistsAtPath:tempFile]){
-                [fileManager removeItemAtPath:tempFile error:&error];
-                if(error) {
-                    return reject(@"error", error.description, nil);
-                }
-            }
-
             [fileManager copyItemAtPath:[sourceURL path] toPath:tempFile error:&error];
             if(error) {
                 return reject(@"error", error.description, nil);
@@ -340,23 +268,16 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
 
         NSURL* targetFile = [ubiquityURL URLByAppendingPathComponent:destPath];
         NSURL *dir = [targetFile URLByDeletingLastPathComponent];
+        NSString *name = [targetFile lastPathComponent];
 
         NSURL* uniqueFile = targetFile;
 
-        if([fileManager fileExistsAtPath:uniqueFile.path]){
-            NSError *error;
-            [fileManager removeItemAtPath:uniqueFile.path error:&error];
-            if(error) {
-                return rejecter(@"error", error.description, nil);
-            }
+        int count = 1;
+        while([fileManager fileExistsAtPath:uniqueFile.path]) {
+            NSString *uniqueName = [NSString stringWithFormat:@"%i.%@", count, name];
+            uniqueFile = [dir URLByAppendingPathComponent:uniqueName];
+            count++;
         }
-
-//        int count = 1;
-//        while([fileManager fileExistsAtPath:uniqueFile.path]) {
-//            NSString *uniqueName = [NSString stringWithFormat:@"%i.%@", count, name];
-//            uniqueFile = [dir URLByAppendingPathComponent:uniqueName];
-//            count++;
-//        }
 
         RCTLogTrace(@"Target file: %@", uniqueFile.path);
 

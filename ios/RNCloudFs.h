@@ -6,5 +6,5 @@
 #endif
 
 @interface RNCloudFs : NSObject <RCTBridgeModule>
-@property (nonatomic, strong) NSMetadataQuery *query;
+
 @end
