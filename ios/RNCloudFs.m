@@ -23,6 +23,16 @@
 RCT_EXPORT_MODULE()
 
 //see https://developer.apple.com/library/content/documentation/General/Conceptual/iCloudDesignGuide/Chapters/iCloudFundametals.html
+  
+RCT_EXPORT_METHOD(isAvailable:(RCTPromiseResolveBlock)resolve
+                rejecter:(RCTPromiseRejectBlock)reject) {
+
+    NSURL *ubiquityURL = [self icloudDirectory];
+    if(ubiquityURL != nil){
+        return resolve(@YES);
+    }
+    return resolve(@NO);
+}
 
 RCT_EXPORT_METHOD(createFile:(NSDictionary *) options
                   resolver:(RCTPromiseResolveBlock)resolve
