@@ -38,8 +38,8 @@ allprojects {
 }
 
 dependencies {
-    provided 'com.google.android.gms:play-services-drive:+'
-    implementation ('com.google.android.gms:play-services-auth:18.1.0') {
+    provided 'com.google.android.gms:play-services-drive:17.0.0'
+    implementation ('com.google.android.gms:play-services-auth:17.0.0') {
         force = true;
     }
     implementation 'com.google.http-client:google-http-client-gson:1.26.0'
