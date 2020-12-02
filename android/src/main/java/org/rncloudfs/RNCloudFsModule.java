@@ -54,6 +54,11 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     private DriveServiceHelper mDriveServiceHelper;
 
     private Promise signInPromise;
+    private @Nullable Promise mPendingPromise; // we use it for calling again copyToCloud after obtaining authorisation
+    private @Nullable ReadableMap mPendingOptions;
+    private static final String COPY_TO_CLOUD = "CopyToCloud";
+    private static final String LIST_FILES = "ListFiles";
+    private @Nullable String mPendingOperation = null;
     private final ReactApplicationContext reactContext;
     private GoogleApiClient googleApiClient;
 
@@ -142,28 +147,47 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
             WritableMap result = new WritableNativeMap();
 
             boolean useDocumentsFolder = options.hasKey("scope") ? options.getString("scope").toLowerCase().equals("visible") : true;
+            try {
 
-            mDriveServiceHelper.queryFiles(useDocumentsFolder)
-                    .addOnSuccessListener(fileList -> {
-                        for (File file : fileList.getFiles()) {
-                            WritableMap fileInfo = new WritableNativeMap();
-                            fileInfo.putString("name", file.getName());
-                            fileInfo.putString("id", file.getId());
-                            fileInfo.putString("lastModified", file.getModifiedTime().toString());
-                            files.pushMap(fileInfo);
-                        }
-                        result.putArray("files", files);
-                        promise.resolve(result);
-                    })
-                    .addOnFailureListener(exception -> {
-                        Log.e(TAG, "Unable to query files: " + exception.getCause().getMessage());
-                        try{
-                            UserRecoverableAuthIOException e = (UserRecoverableAuthIOException)exception;
-                            this.reactContext.startActivityForResult(e.getIntent(), REQUEST_AUTHORIZATION, null);
-                        } catch(Exception e){
-                            throw e;
-                        }
-                    });
+                mDriveServiceHelper.queryFiles(useDocumentsFolder)
+                        .addOnSuccessListener(fileList -> {
+                            for (File file : fileList.getFiles()) {
+                                WritableMap fileInfo = new WritableNativeMap();
+                                fileInfo.putString("name", file.getName());
+                                fileInfo.putString("id", file.getId());
+                                fileInfo.putString("lastModified", file.getModifiedTime().toString());
+                                files.pushMap(fileInfo);
+                            }
+                            result.putArray("files", files);
+                            promise.resolve(result);
+                            clearPendingOperations();
+                        })
+                        .addOnFailureListener(exception -> {
+                            clearPendingOperations();
+                            Log.e(TAG, "Unable to query files: " + exception.getCause().getMessage());
+                            try {
+                                UserRecoverableAuthIOException e = (UserRecoverableAuthIOException) exception;
+                                mPendingPromise = promise;
+                                mPendingOptions = options;
+                                mPendingOperation = LIST_FILES;
+                                this.reactContext.startActivityForResult(e.getIntent(), REQUEST_AUTHORIZATION, null);
+                            } catch (Exception e) {
+                                throw e;
+                            }
+                        });
+            } catch (Exception exception) {
+                try {
+                    ExecutionException e = (ExecutionException) exception;
+                    mPendingPromise = promise;
+                    mPendingOptions = options;
+                    mPendingOperation = LIST_FILES;
+                    Intent intent = ((UserRecoverableAuthIOException) e.getCause()).getIntent();
+                    this.reactContext.startActivityForResult(intent, REQUEST_AUTHORIZATION, null);
+                } catch (Exception e) {
+                    promise.reject(exception);
+                    Log.e(TAG, "Unable to query files: " + exception.getCause().getMessage());
+                }
+            }
         }
     }
 
@@ -207,19 +231,36 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 actualMimeType = null;
             }
 
-            mDriveServiceHelper.saveFile(uriOrPath, destinationPath, actualMimeType, useDocumentsFolder)
-                    .addOnSuccessListener(fileId -> {
-                        Log.d(TAG, "Saving " + fileId);
-                        promise.resolve(fileId);
-                    }).addOnFailureListener(exception -> {
-                        try{
-                            UserRecoverableAuthIOException e = (UserRecoverableAuthIOException)exception;
-                            this.reactContext.startActivityForResult(e.getIntent(), REQUEST_AUTHORIZATION, null);
-                        } catch(Exception e){
-                            Log.e(TAG, "Couldn't create file.", exception);
-                            promise.reject(exception);
-                        }
-                    });
+            try {
+                mDriveServiceHelper.saveFile(uriOrPath, destinationPath, actualMimeType, useDocumentsFolder)
+                        .addOnSuccessListener(fileId -> {
+                            Log.d(TAG, "Saving " + fileId);
+                            promise.resolve(fileId);
+                            clearPendingOperations();
+                        }).addOnFailureListener(exception -> {
+                            clearPendingOperations();
+                            try {
+                                UserRecoverableAuthIOException e = (UserRecoverableAuthIOException) exception;
+                                this.reactContext.startActivityForResult(e.getIntent(), REQUEST_AUTHORIZATION, null);
+                            } catch (Exception e) {
+                                Log.e(TAG, "Couldn't create file.", exception);
+                            } finally {
+                                promise.reject(exception);
+                            }
+                        });
+            } catch (Exception exception) {
+                try {
+                    ExecutionException e = (ExecutionException) exception;
+                    mPendingPromise = promise;
+                    mPendingOptions = options;
+                    mPendingOperation = COPY_TO_CLOUD;
+                    Intent intent = ((UserRecoverableAuthIOException) e.getCause()).getIntent();
+                    this.reactContext.startActivityForResult(intent, REQUEST_AUTHORIZATION, null);
+                } catch (Exception e) {
+                    promise.reject(exception);
+                    Log.e(TAG, "Couldn't create file.", exception);
+                }
+            }
         }
     }
 
@@ -253,6 +294,12 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
         System.out.println("RNCloudFsModule.onNewIntent");
     }
 
+    public void clearPendingOperations(){
+        mPendingOperation = null;
+        mPendingPromise = null;
+        mPendingOptions = null;
+    }
+
     @Override
     public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
         switch (requestCode) {
@@ -261,6 +308,34 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                     handleSignInResult(data);
                 }
                 break;
+            case REQUEST_AUTHORIZATION:
+                if (resultCode == Activity.RESULT_OK && data != null) {
+                    // we want to make the operation again after obtaining right permissions
+                    if (mPendingOperation != null) {
+                        final String copiedPendingOperation = mPendingOperation;
+                        reactContext.runOnNativeModulesQueueThread(() -> {
+                            mPendingOperation = null;
+                            switch (copiedPendingOperation) {
+                                case COPY_TO_CLOUD:
+                                    try {
+                                        copyToCloud(mPendingOptions, mPendingPromise);
+                                    } catch (ExecutionException | InterruptedException ignore) {
+                                        mPendingPromise.reject(ignore);
+                                        clearPendingOperations();
+                                    }
+                                    break;
+                                case LIST_FILES:
+                                    try {
+                                        listFiles(mPendingOptions, mPendingPromise);
+                                    } catch (Exception e) {
+                                        mPendingPromise.reject(e);
+                                        clearPendingOperations();
+                                    }
+                                    break;
+                            }
+                        });
+                    }
+                }
         }
 
         //super.onActivityResult(requestCode, resultCode, resultData);
@@ -338,6 +413,7 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                     // The DriveServiceHelper encapsulates all REST API and SAF functionality.
                     // Its instantiation is required before handling any onClick actions.
                     mDriveServiceHelper = new DriveServiceHelper(googleDriveService);
+
                     if(this.signInPromise != null){
                         this.signInPromise.resolve(true);
                         this.signInPromise = null;
