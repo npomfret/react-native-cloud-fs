@@ -90,8 +90,13 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
 
                     })
                     .addOnFailureListener(exception ->{
-                        Log.e(TAG, "Couldn't read file.", exception);
-                        promise.reject(exception);
+                        try{
+                            UserRecoverableAuthIOException e = (UserRecoverableAuthIOException)exception;
+                            this.reactContext.startActivityForResult(e.getIntent(), REQUEST_AUTHORIZATION, null);
+                        } catch(Exception e){
+                            Log.e(TAG, "Couldn't read file.", exception);
+                            promise.reject(exception);
+                        }
                     });
         }
     }
@@ -108,8 +113,13 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
 
                     })
                     .addOnFailureListener(exception ->{
-                        Log.e(TAG, "Couldn't delete file.", exception);
-                        promise.reject(exception);
+                        try{
+                            UserRecoverableAuthIOException e = (UserRecoverableAuthIOException)exception;
+                            this.reactContext.startActivityForResult(e.getIntent(), REQUEST_AUTHORIZATION, null);
+                        } catch(Exception e){
+                            Log.e(TAG, "Couldn't delete file.", exception);
+                            promise.reject(exception);
+                        }
                     });
         }
     }
@@ -202,8 +212,13 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                         Log.d(TAG, "Saving " + fileId);
                         promise.resolve(fileId);
                     }).addOnFailureListener(exception -> {
-                        Log.e(TAG, "Couldn't create file.", exception);
-                        promise.reject(exception);
+                        try{
+                            UserRecoverableAuthIOException e = (UserRecoverableAuthIOException)exception;
+                            this.reactContext.startActivityForResult(e.getIntent(), REQUEST_AUTHORIZATION, null);
+                        } catch(Exception e){
+                            Log.e(TAG, "Couldn't create file.", exception);
+                            promise.reject(exception);
+                        }
                     });
         }
     }
@@ -329,10 +344,15 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                     }
                 })
                 .addOnFailureListener(exception -> {
-                    Log.e(TAG, "Unable to sign in.", exception);
-                    if(this.signInPromise != null){
-                        this.signInPromise.reject(exception);
-                        this.signInPromise = null;
+                    try{
+                        UserRecoverableAuthIOException e = (UserRecoverableAuthIOException)exception;
+                        this.reactContext.startActivityForResult(e.getIntent(), REQUEST_AUTHORIZATION, null);
+                    } catch(Exception e){
+                        Log.e(TAG, "Unable to sign in.", exception);
+                        if(this.signInPromise != null){
+                            this.signInPromise.reject(exception);
+                            this.signInPromise = null;
+                        }
                     }
                 });
     }
@@ -351,8 +371,13 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
 
                     })
                     .addOnFailureListener(exception ->{
-                        Log.e(TAG, "Couldn't read file.", exception);
-                        promise.reject(exception);
+                        try{
+                            UserRecoverableAuthIOException e = (UserRecoverableAuthIOException)exception;
+                            this.reactContext.startActivityForResult(e.getIntent(), REQUEST_AUTHORIZATION, null);
+                        } catch(Exception e){
+                            Log.e(TAG, "Couldn't read file.", exception);
+                            promise.reject(exception);
+                        }
                     });
         }
     }
