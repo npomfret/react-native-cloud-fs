@@ -328,7 +328,6 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
 
     @Override
     public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
-//        super.onActivityResult(requestCode, resultCode, resultData);
         switch (requestCode) {
             case REQUEST_CODE_SIGN_IN:
                 // The Task returned from this call is always completed, no need to attach
