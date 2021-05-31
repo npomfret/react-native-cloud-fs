@@ -430,4 +430,38 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
 
 }
 
+
+RCT_EXPORT_METHOD(syncCloud:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    
+    _query = [[NSMetadataQuery alloc] init];
+    [_query setSearchScopes:@[NSMetadataQueryUbiquitousDocumentsScope, NSMetadataQueryUbiquitousDataScope]];
+    [_query setPredicate:[NSPredicate predicateWithFormat: @"%K LIKE '*'", NSMetadataItemFSNameKey]];
+
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        
+        BOOL startedQuery = [self->_query startQuery];
+        if (!startedQuery)
+        {
+            reject(@"error", @"Failed to start query.\n", nil);
+        }
+    });
+    
+    [[NSNotificationCenter defaultCenter] addObserverForName:
+     NSMetadataQueryDidFinishGatheringNotification
+    object:_query queue:[NSOperationQueue currentQueue]
+    usingBlock:^(NSNotification __strong *notification)
+    {
+        NSMetadataQuery *query = [notification object];
+        [query disableUpdates];
+        [query stopQuery];
+        for (NSMetadataItem *item in query.results) {
+            [self downloadFileIfNotAvailable: item];
+        }
+        return resolve(@YES);
+    }];
+    
+}
+
 @end
