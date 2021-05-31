@@ -19,10 +19,12 @@ import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.ApiException;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.Scope;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
@@ -132,8 +134,32 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     @ReactMethod
     public void loginIfNeeded(final Promise promise){
         if (mDriveServiceHelper == null) {
-            this.signInPromise = promise;
-            requestSignIn();
+            // Check for already logged in account
+            GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this.reactContext);
+
+            // Not signed in - request sign in
+            if (account == null) {
+                this.signInPromise = promise;
+                requestSignIn();
+            } else {
+                // Restore mDriveServiceHelper
+                // Use the authenticated account to sign in to the Drive service.
+                GoogleAccountCredential credential =
+                        GoogleAccountCredential.usingOAuth2(
+                                this.reactContext, Collections.singleton(DriveScopes.DRIVE_APPDATA));
+                credential.setSelectedAccount(account.getAccount());
+                Drive googleDriveService =
+                        new Drive.Builder(
+                                AndroidHttp.newCompatibleTransport(),
+                                new GsonFactory(),
+                                credential)
+                                .build();
+
+                // The DriveServiceHelper encapsulates all REST API and SAF functionality.
+                // Its instantiation is required before handling any onClick actions.
+                mDriveServiceHelper = new DriveServiceHelper(googleDriveService);
+                promise.resolve(true);
+            }
         }  else {
             promise.resolve(true);
         }
@@ -302,11 +328,13 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
 
     @Override
     public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
+//        super.onActivityResult(requestCode, resultCode, resultData);
         switch (requestCode) {
             case REQUEST_CODE_SIGN_IN:
-                if (resultCode == Activity.RESULT_OK && data != null) {
-                    handleSignInResult(data);
-                }
+                // The Task returned from this call is always completed, no need to attach
+                // a listener.
+                Task<GoogleSignInAccount> task = GoogleSignIn.getSignedInAccountFromIntent(data);
+                handleSignInResult(task);
                 break;
             case REQUEST_AUTHORIZATION:
                 if (resultCode == Activity.RESULT_OK && data != null) {
@@ -338,7 +366,6 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                 }
         }
 
-        //super.onActivityResult(requestCode, resultCode, resultData);
     }
 
     @Override
@@ -393,44 +420,36 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
      * Handles the {@code result} of a completed sign-in activity initiated from {@link
      * #requestSignIn()} ()}.
      */
-    private void handleSignInResult(Intent result) {
-        GoogleSignIn.getSignedInAccountFromIntent(result)
-                .addOnSuccessListener(googleAccount -> {
-                    Log.d(TAG, "Signed in as " + googleAccount.getEmail());
+    private void handleSignInResult(Task<GoogleSignInAccount> completedTask) {
+        try {
+            GoogleSignInAccount googleAccount = completedTask.getResult(ApiException.class);
+            Log.d(TAG, "Signed in as " + googleAccount.getEmail());
 
-                    // Use the authenticated account to sign in to the Drive service.
-                    GoogleAccountCredential credential =
-                            GoogleAccountCredential.usingOAuth2(
-                                    this.reactContext, Collections.singleton(DriveScopes.DRIVE_APPDATA));
-                    credential.setSelectedAccount(googleAccount.getAccount());
-                    Drive googleDriveService =
-                            new Drive.Builder(
-                                    AndroidHttp.newCompatibleTransport(),
-                                    new GsonFactory(),
-                                    credential)
-                                    .build();
+            // Use the authenticated account to sign in to the Drive service.
+            GoogleAccountCredential credential =
+                    GoogleAccountCredential.usingOAuth2(
+                            this.reactContext, Collections.singleton(DriveScopes.DRIVE_APPDATA));
+            credential.setSelectedAccount(googleAccount.getAccount());
+            Drive googleDriveService =
+                    new Drive.Builder(
+                            AndroidHttp.newCompatibleTransport(),
+                            new GsonFactory(),
+                            credential)
+                            .build();
 
-                    // The DriveServiceHelper encapsulates all REST API and SAF functionality.
-                    // Its instantiation is required before handling any onClick actions.
-                    mDriveServiceHelper = new DriveServiceHelper(googleDriveService);
+            // The DriveServiceHelper encapsulates all REST API and SAF functionality.
+            // Its instantiation is required before handling any onClick actions.
+            mDriveServiceHelper = new DriveServiceHelper(googleDriveService);
 
-                    if(this.signInPromise != null){
-                        this.signInPromise.resolve(true);
-                        this.signInPromise = null;
-                    }
-                })
-                .addOnFailureListener(exception -> {
-                    try{
-                        UserRecoverableAuthIOException e = (UserRecoverableAuthIOException)exception;
-                        this.reactContext.startActivityForResult(e.getIntent(), REQUEST_AUTHORIZATION, null);
-                    } catch(Exception e){
-                        Log.e(TAG, "Unable to sign in.", exception);
-                        if(this.signInPromise != null){
-                            this.signInPromise.reject(exception);
-                            this.signInPromise = null;
-                        }
-                    }
-                });
+            if(this.signInPromise != null){
+                this.signInPromise.resolve(true);
+                this.signInPromise = null;
+            }
+        } catch (ApiException e) {
+            // The ApiException status code indicates the detailed failure reason.
+            // Please refer to the GoogleSignInStatusCodes class reference for more information.
+            Log.w(TAG, "signInResult:failed code=" + e.getStatusCode());
+        }
     }
 
     /**

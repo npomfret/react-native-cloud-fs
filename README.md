@@ -95,3 +95,52 @@ RNCloudFs.listFiles({targetPath: path, scope: scope})
 _targetPath_: a path representing a folder to list files from
 
 _scope_: a string to specify if the files are the user-visible documents (`visible`) or the app-visible documents (`hidden`)
+
+
+## Android
+
+After following the instructions in [Getting started](./docs/getting-started.md) I recommend using [react-native-google-signin](https://github.com/react-native-google-signin/google-signin) to authenticate the user, especially if you need additional scopes besides `auth/drive.file` which is the only scope this package requests, and let that package handle auth.
+
+Example of usage on Android:
+
+```js
+import { Platform } from 'react-native';
+import { GoogleSignin, statusCodes } from '@react-native-community/google-signin';
+import RNCloudFS from 'react-native-cloud-fs';
+
+if (Platform.OS === 'android') {
+  GoogleSignin.configure({
+    scopes: [
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/drive.file',
+      // other scopes your app needs
+    ],
+    webClientId: '...' // you may not need this depending on scopes,
+    offlineAccess: true,
+    forceConsentPrompt: true,
+  });
+
+  // Ensure play services exist. Cannot sign in otherwise. If unavailable, this
+  // will show a modal asking the user to get play services before continuing.
+  await GoogleSignin.hasPlayServices({
+    showPlayServicesUpdateDialog: true
+  });
+
+  // If user is already signed in, don't need to call signIn again
+  const isSignedIn = await GoogleSignin.isSignedIn();
+  if (!isSignedIn) {
+    await GoogleSignin.signIn();
+  }
+
+  // Syncs signed in state to RNCloudFS
+  await RNCloudFS.loginIfNeeded();
+  
+  // Now you can copy to cloud
+  await RNCloudFS.copyToCloud({
+    sourcePath: { path: 'some/path.txt' },
+    targetPath: `some/path.txt`,
+    scope: 'visible'
+  });
+}
+```
