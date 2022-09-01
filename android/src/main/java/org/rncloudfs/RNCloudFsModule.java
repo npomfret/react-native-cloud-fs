@@ -362,7 +362,12 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                             }
                         });
                     }
+                } else if (resultCode == Activity.RESULT_CANCELED && mPendingPromise != null) {
+                    mPendingPromise.reject("canceled", "User canceled");
+                } else if (mPendingPromise != null) {
+                    mPendingPromise.reject("unknown error", "Operation failed: " + mPendingOperation + " result code " + resultCode);
                 }
+                break;
         }
 
     }
@@ -448,6 +453,10 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
             // The ApiException status code indicates the detailed failure reason.
             // Please refer to the GoogleSignInStatusCodes class reference for more information.
             Log.w(TAG, "signInResult:failed code=" + e.getStatusCode());
+            if(this.signInPromise != null){
+                this.signInPromise.reject("signInResult:" + e.getStatusCode(), e.getMessage());
+                this.signInPromise = null;
+            }
         }
     }
 
