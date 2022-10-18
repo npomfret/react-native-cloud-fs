@@ -244,6 +244,33 @@ RCT_EXPORT_METHOD(copyToCloud:(NSDictionary *)options
     }
 }
 
+RCT_EXPORT_METHOD(readFileContent:(NSDictionary *)options
+                   resolver:(RCTPromiseResolveBlock)resolve
+                   rejecter:(RCTPromiseRejectBlock)reject) {
+    
+    NSString *destinationPath = [options objectForKey:@"targetPath"];
+    NSString *scope = [options objectForKey:@"scope"];
+    bool documentsFolder = !scope || [scope caseInsensitiveCompare:@"visible"] == NSOrderedSame;
+
+    NSFileManager* fileManager = [NSFileManager defaultManager];
+    
+    NSURL *ubiquityURL = documentsFolder ? [self icloudDocumentsDirectory] : [self icloudDirectory];
+    
+    if (ubiquityURL) {
+        NSURL* dir = [ubiquityURL URLByAppendingPathComponent:destinationPath];
+        NSString* dirPath = [dir.path stringByStandardizingPath];
+
+        NSString *content = [NSString stringWithContentsOfFile:dirPath encoding:NSUTF8StringEncoding error:nil];
+        
+        RCTLogTrace(@"Has read file content from %@", dir);
+
+        return resolve(content);
+    } else {
+        NSLog(@"Could not retrieve a ubiquityURL");
+        return reject(@"error", [NSString stringWithFormat:@"could not get from iCloud drive '%@'", destinationPath], nil);
+    }
+}
+
 - (void) moveToICloudDirectory:(bool) documentsFolder :(NSString *)tempFile :(NSString *)destinationPath                                 :(bool) update
                               :(RCTPromiseResolveBlock)resolver
                               :(RCTPromiseRejectBlock)rejecter {

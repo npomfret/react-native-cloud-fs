@@ -99,3 +99,24 @@ RNCloudFs.listFiles({targetPath: path, scope: scope})
 _targetPath_: a path representing a folder to list files from
 
 _scope_: a string to specify if the files are the user-visible documents (`visible`) or the app-visible documents (`hidden`)
+
+### readFileContent (options)
+Reads a file content. The scope determines if the file listing takes place in the app folder or the public user documents folder.
+
+```javascript
+const path = "dirA/dirB";
+const scope = 'hidden';
+
+RNCloudFs.readFileContent({targetPath: path, scope: scope})
+  .then((res) => {
+    console.log("it worked", res);
+  })
+  .catch((err) => {
+    console.warn("it failed", err);
+  })
+```
+
+_targetPath_: a path representing a file which content you want to read
+
+_scope_: a string to specify if the files are the user-visible documents (`visible`) or the app-visible documents (`hidden`)
+
