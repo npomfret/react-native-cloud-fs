@@ -43,12 +43,14 @@ const sourceUri = {uri: 'https://foo.com/bar.pdf'};
 const destinationPath = "foo-bar/docs/info.pdf";
 const mimeType = null;
 const scope = 'visible';
+const update = false;
 
 RNCloudFs.copyToCloud({
   sourcePath: sourceUri, 
   targetPath: destinationPath, 
-  mimeType: mimeType, 
-  scope: scope
+  mimeType, 
+  scope,
+  update
 })
   .then((path) => {
     console.log("it worked", path);
@@ -76,6 +78,8 @@ _mimeType_:  a mime type to store the file with **or null** (android only) , e.g
 
 _scope_: a string to specify if the user can access the document (`visible`) or not (`hidden`)
 
+_update_: a boolean to specify if we want to update an existing item instead of creating a new one
+
 ### listFiles (options)
 Lists files in a directory along with some file metadata.  The scope determines if the file listing takes place in the app folder or the public user documents folder.
 
@@ -95,3 +99,24 @@ RNCloudFs.listFiles({targetPath: path, scope: scope})
 _targetPath_: a path representing a folder to list files from
 
 _scope_: a string to specify if the files are the user-visible documents (`visible`) or the app-visible documents (`hidden`)
+
+### readFileContent (options)
+Reads a file content. The scope determines if the file listing takes place in the app folder or the public user documents folder.
+
+```javascript
+const path = "dirA/dirB";
+const scope = 'hidden';
+
+RNCloudFs.readFileContent({targetPath: path, scope: scope})
+  .then((res) => {
+    console.log("it worked", res);
+  })
+  .catch((err) => {
+    console.warn("it failed", err);
+  })
+```
+
+_targetPath_: a path representing a file which content you want to read
+
+_scope_: a string to specify if the files are the user-visible documents (`visible`) or the app-visible documents (`hidden`)
+
