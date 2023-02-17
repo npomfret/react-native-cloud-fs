@@ -400,6 +400,18 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @ReactMethod
+    public void getCurrentlySignedInAccountEmail(Promise promise) {
+        Log.d(TAG, "Logging out");
+
+        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this.reactContext);
+        if (account == null) {
+            promise.resolve(null);
+        } else {
+            promise.resolve(account.getEmail());
+        }
+    }
+
+    @ReactMethod
     public void logout(Promise promise) {
 
         Log.d(TAG, "Requesting sign-in");
