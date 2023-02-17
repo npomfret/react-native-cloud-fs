@@ -410,6 +410,7 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                         .requestScopes(new Scope(DriveScopes.DRIVE_FILE))
                         .build();
         GoogleSignInClient client = GoogleSignIn.getClient(this.reactContext, signInOptions);
+        mDriveServiceHelper = null;
         client.signOut()
                 .addOnSuccessListener( result -> {
                     promise.resolve(true);
