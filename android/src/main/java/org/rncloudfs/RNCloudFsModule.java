@@ -400,6 +400,18 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @ReactMethod
+    public void getCurrentlySignedInAccountEmail(Promise promise) {
+        Log.d(TAG, "Logging out");
+
+        GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this.reactContext);
+        if (account == null) {
+            promise.resolve(null);
+        } else {
+            promise.resolve(account.getEmail());
+        }
+    }
+
+    @ReactMethod
     public void logout(Promise promise) {
 
         Log.d(TAG, "Requesting sign-in");
@@ -410,6 +422,7 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
                         .requestScopes(new Scope(DriveScopes.DRIVE_FILE))
                         .build();
         GoogleSignInClient client = GoogleSignIn.getClient(this.reactContext, signInOptions);
+        mDriveServiceHelper = null;
         client.signOut()
                 .addOnSuccessListener( result -> {
                     promise.resolve(true);
