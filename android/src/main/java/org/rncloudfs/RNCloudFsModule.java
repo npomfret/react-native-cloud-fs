@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Intent;
 import androidx.annotation.Nullable;
 
+import android.net.Uri;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
 import com.facebook.react.bridge.ActivityEventListener;
@@ -400,14 +401,19 @@ public class RNCloudFsModule extends ReactContextBaseJavaModule implements Googl
     }
 
     @ReactMethod
-    public void getCurrentlySignedInAccountEmail(Promise promise) {
+    public void getCurrentlySignedInUserData(Promise promise) {
         Log.d(TAG, "Logging out");
 
         GoogleSignInAccount account = GoogleSignIn.getLastSignedInAccount(this.reactContext);
         if (account == null) {
             promise.resolve(null);
         } else {
-            promise.resolve(account.getEmail());
+            Uri photoUrl = account.getPhotoUrl();
+            WritableMap resultData = new WritableNativeMap();
+            resultData.putString("email", account.getEmail());
+            resultData.putString("name", account.getDisplayName());
+            resultData.putString("avatarUrl", photoUrl != null ? photoUrl.toString() : null);
+            promise.resolve(resultData);
         }
     }
 
